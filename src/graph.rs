@@ -81,11 +81,17 @@ impl Graph {
         }
         already_present
     }
-    
+
     fn get_node_mut(&mut self, node_id: usize) -> Option<&mut Node> {
-        let node_index: Option<&usize> = self.node_map.get(&node_id);
-        match node_index {
+        match self.node_map.get(&node_id) {
             Some(index) => Some(&mut self.node_storage[*index]),
+            None => None,
+        }
+    }
+
+    fn get_node(&self, node_id: usize) -> Option<&Node> {
+        match self.node_map.get(&node_id) {
+            Some(index) => Some(& self.node_storage[*index]),
             None => None,
         }
     }
@@ -96,6 +102,56 @@ impl Graph {
             edge_count += node.connected_nodes.len();
         }
         edge_count / 2
+    }
+
+    fn traverse_count_node_visits(&self) -> HashMap<usize, usize> {
+        let mut node_visits: HashMap<usize, usize> = HashMap::new();
+        let node_id = self.node_storage[0].node_id;
+        node_visits.insert(node_id, 1);
+
+        let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
+        let mut edge_stack: Vec<(usize, usize)> = self._get_edge_list(node_id);
+        println!("Edge stack to start {:#?}", edge_stack);
+
+        while let Some(edge) = edge_stack.pop() {
+            // Only traverse edge if we haven't already used it
+            let edge_already_used: bool = !used_edges.insert(edge);
+
+            // Also add the reverse edge to the set of used edges
+            let (first, second) = edge;
+            used_edges.insert((second, first));
+            println!("Looking at edge {:#?}, already considered {}", edge, edge_already_used);
+            if !edge_already_used {
+                // Visit the node this edge points to
+                let next_node = edge.1;
+
+                // Update the count
+                match node_visits.get_mut(&next_node) {
+                    Some(visit_count) => *visit_count += 1,
+                    None => {
+                        println!("First visit to node {}", next_node);
+                        node_visits.insert(next_node, 1);
+
+                        // If this is our first visit, add all edges onto the stack
+                        edge_stack.append(&mut self._get_edge_list(next_node));
+                    },
+                }
+            }
+        }
+        node_visits
+    }
+
+    fn _get_edge_list(&self, node_id: usize) -> Vec<(usize, usize)> {
+        match self.get_node(node_id) {
+            Some(node) => {
+                let mut edges: Vec<(usize, usize)> = vec![];
+                for neighbour_id in node.connected_nodes.iter() {
+                    edges.push((node_id, *neighbour_id));
+                }
+                edges
+            },
+            None => vec![],
+        }
     }
 }
 
@@ -126,5 +182,20 @@ mod tests {
 
         let graph = Graph::new_from_edges(vec![(10, 11), (11, 20), (20, 5)]);
         check_graph(graph, 4, 3);
+    }
+
+    #[test]
+    fn traverse_graph() {
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
+        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
+        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
+        println!("Traversal {:#?}", graph.traverse_count_node_visits());
     }
 }
