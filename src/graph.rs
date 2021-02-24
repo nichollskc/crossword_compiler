@@ -1,10 +1,6 @@
 use log::{info,warn,debug,error};
 use std::collections::{HashSet,HashMap};
 
-pub mod graph {
-    pub struct Graph;
-}
-
 #[derive(Debug)]
 struct Node {
     // Original ID given to the node

@@ -6,4 +6,5 @@ mod tests {
     }
 }
 
-mod graph;
+pub mod graph;
+pub mod grid;
