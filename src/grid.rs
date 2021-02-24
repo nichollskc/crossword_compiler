@@ -11,11 +11,21 @@ enum FillStatus {
     Black,
 }
 
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 struct FilledCell {
     letter: char,
     across_word_id: Option<usize>,
     down_word_id: Option<usize>,
+}
+
+impl FilledCell {
+    fn new(letter: char, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
+        FilledCell {
+            letter,
+            across_word_id,
+            down_word_id,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -26,13 +36,8 @@ struct Cell {
 
 impl Cell {
     fn new(letter: char, location: (isize, isize), across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
-        let filled_cell = FilledCell {
-            letter,
-            across_word_id,
-            down_word_id,
-        };
         Cell {
-            fill_status: FillStatus::Filled(filled_cell),
+            fill_status: FillStatus::Filled(FilledCell::new(letter, across_word_id, down_word_id)),
             location,
         }
     }
@@ -41,6 +46,22 @@ impl Cell {
         Cell {
             fill_status: FillStatus::Empty,
             location,
+        }
+    }
+
+    fn update_across_word(&mut self, across_word_id: Option<usize>) {
+        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+            self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
+                                                                  across_word_id,
+                                                                  filled_cell.down_word_id));
+        }
+    }
+
+    fn update_down_word(&mut self, down_word_id: Option<usize>) {
+        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+            self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
+                                                                  filled_cell.across_word_id,
+                                                                  down_word_id));
         }
     }
 }
@@ -58,8 +79,18 @@ pub struct CrosswordGrid {
 }
 
 impl CrosswordGrid {
-    fn remove_word(mut self, word_id: usize) {
+    fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
+        for (loaction, cell) in self.cell_map.iter_mut() {
+            if let FillStatus::Filled(mut filled_cell) = cell.fill_status {
+                if filled_cell.across_word_id == Some(word_id) {
+                    cell.update_across_word(None);
+                }
+                if filled_cell.down_word_id == Some(word_id) {
+                    cell.update_down_word(None);
+                }
+            }
+        }
     }
 }
 
@@ -136,10 +167,22 @@ impl CrosswordGridBuilder {
             }
         }
 
-        CrosswordGrid {
+        let mut grid = CrosswordGrid {
             cell_map: self.cell_map,
             word_map: self.word_map,
             top_left_cell_index: 0,
+        };
+
+        let mut word_ids: Vec<usize> = vec![];
+        for (word_id, word) in grid.word_map.iter() {
+            if word.word_text.len() == 1 {
+                word_ids.push(*word_id);
+            }
         }
+
+        for word_id in word_ids {
+            grid.remove_word(word_id);
+        }
+        grid
     }
 }
