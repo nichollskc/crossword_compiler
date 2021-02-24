@@ -1,3 +1,4 @@
+use std::cmp;
 use log::{info,warn,debug,error};
 use std::collections::{HashSet,HashMap};
 use std::fs;
@@ -58,10 +59,26 @@ impl Cell {
     }
 
     fn update_down_word(&mut self, down_word_id: Option<usize>) {
-        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
                                                                   filled_cell.across_word_id,
                                                                   down_word_id));
+        }
+    }
+
+    fn get_down_word_id(&self) -> Option<usize> {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
+            filled_cell.down_word_id
+        } else {
+            None
+        }
+    }
+
+    fn get_across_word_id(&self) -> Option<usize> {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
+            filled_cell.across_word_id
+        } else {
+            None
         }
     }
 }
@@ -75,13 +92,14 @@ struct Word {
 pub struct CrosswordGrid {
     cell_map: HashMap<(isize, isize), Cell>,
     word_map: HashMap<usize, Word>,
-    top_left_cell_index: usize,
+    top_left_cell_index: (isize, isize),
+    bottom_right_cell_index: (isize, isize),
 }
 
 impl CrosswordGrid {
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
-        for (loaction, cell) in self.cell_map.iter_mut() {
+        for (location, cell) in self.cell_map.iter_mut() {
             if let FillStatus::Filled(mut filled_cell) = cell.fill_status {
                 if filled_cell.across_word_id == Some(word_id) {
                     cell.update_across_word(None);
@@ -89,6 +107,35 @@ impl CrosswordGrid {
                 if filled_cell.down_word_id == Some(word_id) {
                     cell.update_down_word(None);
                 }
+            }
+        }
+    }
+
+    pub fn count_words(&self) -> usize {
+        self.word_map.len()
+    }
+
+    pub fn check_valid(&self) {
+        assert!(self.top_left_cell_index.0 < self.bottom_right_cell_index.0);
+        assert!(self.top_left_cell_index.1 < self.bottom_right_cell_index.1);
+
+        let mut row = self.top_left_cell_index.0;
+        let mut col = self.top_left_cell_index.1;
+
+        while row < self.bottom_right_cell_index.0 {
+            while col < self.bottom_right_cell_index.1 {
+                assert!(self.cell_map.contains_key(&(row, col)));
+                col += 1;
+            }
+            row += 1;
+        }
+
+        for cell in self.cell_map.values() {
+            if let Some(word_id) = cell.get_across_word_id() {
+                assert!(self.word_map.contains_key(&word_id));
+            }
+            if let Some(word_id) = cell.get_down_word_id() {
+                assert!(self.word_map.contains_key(&word_id));
             }
         }
     }
@@ -101,6 +148,7 @@ pub struct CrosswordGridBuilder {
     current_down_word_ids: HashMap<isize, Option<usize>>,
     row: isize,
     col: isize,
+    max_col: isize,
     index: usize,
     word_index: usize,
 }
@@ -115,6 +163,7 @@ impl CrosswordGridBuilder {
             row: 0,
             col: 0,
             index: 0,
+            max_col: 0,
             word_index: 0,
         }
     }
@@ -126,6 +175,7 @@ impl CrosswordGridBuilder {
         for c in characters {
             if c == '\n' {
                 self.row += 1;
+                self.max_col = cmp::max(self.max_col, self.col);
                 self.col = 0;
             } else {
                 if self.row == 0 {
@@ -170,7 +220,8 @@ impl CrosswordGridBuilder {
         let mut grid = CrosswordGrid {
             cell_map: self.cell_map,
             word_map: self.word_map,
-            top_left_cell_index: 0,
+            top_left_cell_index: (0, 0),
+            bottom_right_cell_index: (self.row, self.max_col),
         };
 
         let mut word_ids: Vec<usize> = vec![];
