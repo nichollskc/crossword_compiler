@@ -52,16 +52,20 @@ struct Word {
 
 #[derive(Debug)]
 pub struct CrosswordGrid {
-    cell_list: Vec<Cell>,
-    cell_map: HashMap<(isize, isize), usize>,
-    word_list: Vec<Word>,
+    cell_map: HashMap<(isize, isize), Cell>,
+    word_map: HashMap<usize, Word>,
     top_left_cell_index: usize,
 }
 
+impl CrosswordGrid {
+    fn remove_word(mut self, word_id: usize) {
+        self.word_map.remove(&word_id);
+    }
+}
+
 pub struct CrosswordGridBuilder {
-    cell_list: Vec<Cell>,
-    cell_map: HashMap<(isize, isize), usize>,
-    word_list: Vec<Word>,
+    cell_map: HashMap<(isize, isize), Cell>,
+    word_map: HashMap<usize, Word>,
     current_across_word_id: Option<usize>,
     current_down_word_ids: HashMap<isize, Option<usize>>,
     row: isize,
@@ -73,9 +77,8 @@ pub struct CrosswordGridBuilder {
 impl CrosswordGridBuilder {
     pub fn new() -> Self {
         CrosswordGridBuilder {
-            cell_list: vec![],
             cell_map: HashMap::new(),
-            word_list: vec![],
+            word_map: HashMap::new(),
             current_across_word_id: None,
             current_down_word_ids: HashMap::new(),
             row: 0,
@@ -105,38 +108,37 @@ impl CrosswordGridBuilder {
                     self.current_down_word_ids.insert(self.col, None);
 
                     // Add empty cell to our grid
-                    self.cell_list.push(Cell::empty(location));
+                    self.cell_map.insert(location, Cell::empty(location));
                 } else {
                     if let Some(word_id) = self.current_across_word_id {
-                        self.word_list[word_id].word_text.push(c);
+                        self.word_map.get_mut(&word_id).unwrap().word_text.push(c);
                     } else {
-                        self.word_list.push(Word { word_text: c.to_string() });
+                        self.word_map.insert(self.word_index, Word { word_text: c.to_string() });
                         self.current_across_word_id = Some(self.word_index);
                         self.word_index += 1;
                     }
                     if let Some(word_id) = *self.current_down_word_ids.get(&self.col).unwrap() {
-                        self.word_list[word_id].word_text.push(c);
+                        self.word_map.get_mut(&word_id).unwrap().word_text.push(c);
                     } else {
-                        self.word_list.push(Word { word_text: c.to_string() });
+                        self.word_map.insert(self.word_index, Word { word_text: c.to_string() });
                         self.current_down_word_ids.insert(self.col, Some(self.word_index));
                         self.word_index += 1;
                     }
 
-                    self.cell_list.push(Cell::new(c,
-                                                  location,
-                                                  self.current_across_word_id,
-                                                  *self.current_down_word_ids.get(&self.col).unwrap()));
+                    self.cell_map.insert(location,
+                                         Cell::new(c,
+                                                   location,
+                                                   self.current_across_word_id,
+                                                   *self.current_down_word_ids.get(&self.col).unwrap()));
                 }
-                self.cell_map.insert(location, self.index);
                 self.col += 1;
                 self.index += 1;
             }
         }
 
         CrosswordGrid {
-            cell_list: self.cell_list,
             cell_map: self.cell_map,
-            word_list: self.word_list,
+            word_map: self.word_map,
             top_left_cell_index: 0,
         }
     }
