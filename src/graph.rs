@@ -6,7 +6,7 @@ struct Node {
     // Original ID given to the node
     node_id: usize,
     // Set of nodes this node is connected to
-    connected_nodes: HashSet<usize>, 
+    connected_nodes: HashSet<usize>,
 }
 
 impl Node {
@@ -27,7 +27,7 @@ impl Node {
 }
 
 #[derive(Debug)]
-struct Graph {
+pub struct Graph {
     // Node storage
     node_storage: Vec<Node>,
     // Hashmap of all nodes in the graph, indexed by their fixed node_id
@@ -37,7 +37,7 @@ struct Graph {
 }
 
 impl Graph {
-    fn new_from_edges(edges: Vec<(usize, usize)>) -> Self {
+    pub fn new_from_edges(edges: Vec<(usize, usize)>) -> Self {
         let mut graph: Graph = Graph {
             num_nodes: 0,
             node_storage: vec![],
@@ -48,7 +48,7 @@ impl Graph {
         graph
     }
 
-    fn add_edges(&mut self, edges: Vec<(usize, usize)>) {
+    pub fn add_edges(&mut self, edges: Vec<(usize, usize)>) {
         for edge in edges.iter() {
             debug!("Edge {:#?}", edge);
             let (first, second) = edge;
@@ -63,7 +63,7 @@ impl Graph {
         }
     }
 
-    fn add_node(&mut self, node_id: usize) -> bool {
+    pub fn add_node(&mut self, node_id: usize) -> bool {
         let already_present: bool = self.node_map.contains_key(&node_id);
         if !already_present {
             debug!("Adding node {}", node_id);
@@ -92,7 +92,7 @@ impl Graph {
         }
     }
 
-    fn count_edges(&self) -> usize {
+    pub fn count_edges(&self) -> usize {
         let mut edge_count: usize = 0;
         for node in self.node_storage.iter() {
             edge_count += node.connected_nodes.len();
@@ -135,6 +135,29 @@ impl Graph {
             }
         }
         node_visits
+    }
+
+    /// Returns true if all nodes are in one connected component, false otherwise
+    pub fn is_connected(&self) -> bool {
+        let mut connected = true;
+        let node_visits = self.traverse_count_node_visits();
+        for node_id in self.node_map.keys() {
+            if !node_visits.contains_key(node_id) {
+                connected = false;
+            }
+        }
+        connected
+    }
+
+    /// Counts cycles in the graph, with the assumption that it is connected
+    pub fn count_cycles(&self) -> usize {
+        let node_visits = self.traverse_count_node_visits();
+        let mut cycles: usize = 0;
+        for (node_id, visit_count) in node_visits.iter() {
+            assert!(*visit_count > 0);
+            cycles += visit_count - 1;
+        }
+        cycles
     }
 
     fn _get_edge_list(&self, node_id: usize) -> Vec<(usize, usize)> {
@@ -184,14 +207,21 @@ mod tests {
     fn traverse_graph() {
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
         println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        assert_eq!(graph.count_cycles(), 0);
+        assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
         println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        assert_eq!(graph.count_cycles(), 1);
+        assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
         println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        assert_eq!(graph.count_cycles(), 2);
+        assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
         println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        assert!(!graph.is_connected());
     }
 }

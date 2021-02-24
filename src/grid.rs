@@ -3,6 +3,8 @@ use log::{info,warn,debug,error};
 use std::collections::{HashSet,HashMap};
 use std::fs;
 
+use crate::graph::Graph;
+
 #[derive(Debug)]
 enum FillStatus {
     Filled(FilledCell),
@@ -81,6 +83,15 @@ impl Cell {
             None
         }
     }
+
+    fn is_intersection(&self) -> bool {
+        if let (Some(across), Some(down)) = (self.get_across_word_id(),
+                                             self.get_down_word_id()) {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -115,6 +126,32 @@ impl CrosswordGrid {
         self.word_map.len()
     }
 
+    pub fn count_intersections(&self) -> usize {
+        let mut intersections: usize = 0;
+        for cell in self.cell_map.values() {
+            if cell.is_intersection() {
+                intersections += 1
+            }
+        }
+        intersections
+    }
+
+    pub fn to_graph(&self) -> Graph {
+        let mut edges: Vec<(usize, usize)> = vec![];
+        for cell in self.cell_map.values() {
+            if cell.is_intersection() {
+                edges.push((cell.get_across_word_id().unwrap(),
+                            cell.get_down_word_id().unwrap()));
+            }
+        }
+        let mut graph = Graph::new_from_edges(edges);
+
+        for word_id in self.word_map.keys() {
+            graph.add_node(*word_id);
+        }
+        graph
+    }
+
     pub fn check_valid(&self) {
         assert!(self.top_left_cell_index.0 < self.bottom_right_cell_index.0);
         assert!(self.top_left_cell_index.1 < self.bottom_right_cell_index.1);
@@ -138,6 +175,8 @@ impl CrosswordGrid {
                 assert!(self.word_map.contains_key(&word_id));
             }
         }
+
+        assert!(self.to_graph().is_connected());
     }
 }
 
