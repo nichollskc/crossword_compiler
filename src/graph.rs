@@ -144,6 +144,7 @@ impl Graph {
         for node_id in self.node_map.keys() {
             if !node_visits.contains_key(node_id) {
                 connected = false;
+                println!("Node never reached {}", node_id);
             }
         }
         connected

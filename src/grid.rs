@@ -129,7 +129,7 @@ impl Location {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 struct WordPlacement {
     start_location: Location,
     end_location: Location,
@@ -146,9 +146,9 @@ impl Word {
     fn new(string: &str, start_location: Location, across: bool) -> Self {
         let mut end_location = start_location.clone();
         if across {
-            end_location.1 += string.len() as isize;
+            end_location.1 += string.len() as isize - 1;
         } else {
-            end_location.0 += string.len() as isize;
+            end_location.0 += string.len() as isize - 1;
         }
         let placement = WordPlacement {
             start_location,
@@ -175,6 +175,15 @@ impl Word {
 
     fn extend_word(&mut self, character: char) {
         self.word_text.push(character);
+        if let Some(word_placement) = &self.placement {
+            let mut new_word_placement = word_placement.clone();
+            if self.across {
+                new_word_placement.end_location = word_placement.end_location.relative_location(0, 1);
+            } else {
+                new_word_placement.end_location = word_placement.end_location.relative_location(1, 0);
+            }
+            self.placement = Some(new_word_placement);
+        }
     }
 }
 
@@ -208,7 +217,11 @@ impl CrosswordGrid {
                 }
 
                 for cell_location in black_cells {
-                    self.cell_map.get_mut(&cell_location).unwrap().set_black();
+                    if let Some(cell) = self.cell_map.get_mut(&cell_location) {
+                        cell.set_black();
+                    } else {
+                        panic!("Cell doesn't exist! {:#?}, {:#?}", cell_location, word);
+                    }
                 }
             }
         }
@@ -253,6 +266,7 @@ impl CrosswordGrid {
                             cell.get_down_word_id().unwrap()));
             }
         }
+        println!("All intersections found {:#?}", edges);
         let mut graph = Graph::new_from_edges(edges);
 
         for word_id in self.word_map.keys() {
@@ -268,6 +282,11 @@ impl CrosswordGrid {
             self.cell_map.insert(location, Cell::empty(location));
             col += 1;
         }
+        if new_row > self.bottom_right_cell_index.0 {
+            self.bottom_right_cell_index = Location(new_row, self.bottom_right_cell_index.1);
+        } else if new_row < self.top_left_cell_index.0 {
+            self.top_left_cell_index = Location(new_row, self.top_left_cell_index.1);
+        }
     }
 
     fn add_empty_col(&mut self, new_col: isize) {
@@ -277,24 +296,29 @@ impl CrosswordGrid {
             self.cell_map.insert(location, Cell::empty(location));
             row += 1;
         }
+        if new_col > self.bottom_right_cell_index.1 {
+            self.bottom_right_cell_index = Location(self.bottom_right_cell_index.0, new_col);
+        } else if new_col < self.top_left_cell_index.1 {
+            self.top_left_cell_index = Location(self.top_left_cell_index.0, new_col);
+        }
     }
 
     /// Trim the grid so that there is exactly one row and column of empty
     /// cells on either side of the grid
-    fn fit_to_size(&mut self) {
+    pub fn fit_to_size(&mut self) {
         self.check_valid();
 
         if self.count_filled_cells_row(self.top_left_cell_index.0) > 0 {
             self.add_empty_row(self.top_left_cell_index.0 - 1);
         }
         if self.count_filled_cells_row(self.bottom_right_cell_index.0) > 0 {
-            self.add_empty_row(self.bottom_right_cell_index.0 - 1);
+            self.add_empty_row(self.bottom_right_cell_index.0 + 1);
         }
         if self.count_filled_cells_col(self.top_left_cell_index.1) > 0 {
             self.add_empty_col(self.top_left_cell_index.1 - 1);
         }
         if self.count_filled_cells_col(self.bottom_right_cell_index.1) > 0 {
-            self.add_empty_col(self.bottom_right_cell_index.1 - 1);
+            self.add_empty_col(self.bottom_right_cell_index.1 + 1);
         }
     }
 
@@ -372,7 +396,9 @@ impl CrosswordGrid {
             }
         }
 
-        assert!(self.to_graph().is_connected());
+        let graph = self.to_graph();
+        println!("{:#?}", graph);
+        assert!(graph.is_connected());
     }
 }
 
@@ -504,6 +530,29 @@ mod tests {
         assert_eq!(grid.count_filled_cells_row(0), 5);
 
         let grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+        }
+    }
+
+    #[test]
+    fn test_fit_to_size() {
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        assert_eq!(grid.cell_map.len(), 7*3);
+        // Shouldn't change size on second call of function
+        grid.fit_to_size();
+        assert_eq!(grid.cell_map.len(), 7*3);
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        // Number of non-empty cells shouldn't change
+        grid.fit_to_size();
         let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
 
