@@ -112,6 +112,14 @@ impl Cell {
             ' '
         }
     }
+
+    fn is_black(&self) -> bool {
+        if let FillStatus::Black = self.fill_status {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Clone,Copy,Debug,Eq,Hash)]
@@ -211,15 +219,13 @@ impl CrosswordGrid {
 
         for word in self.word_map.values() {
             if let Some((start_location, end_location)) = word.get_location() {
-                let mut black_cells: Vec<Location> = vec![start_location.relative_location(0, -1),
-                                                          start_location.relative_location(-1, 0),
-                                                          end_location.relative_location(0, 1),
-                                                          end_location.relative_location(1, 0)];
+                let mut black_cells: Vec<Location> = vec![];
+
                 if word.across {
-                    black_cells.push(start_location.relative_location(0, 1));
+                    black_cells.push(start_location.relative_location(0, -1));
                     black_cells.push(end_location.relative_location(0, 1));
                 } else {
-                    black_cells.push(start_location.relative_location(1, 0));
+                    black_cells.push(start_location.relative_location(-1, 0));
                     black_cells.push(end_location.relative_location(1, 0));
                 }
 
@@ -524,12 +530,22 @@ mod tests {
         grid.fit_to_size();
         println!("{:#?}", grid);
         grid.fill_black_cells();
+
+        assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 2);
+
+        assert!(grid.cell_map.get(&Location(0, -1)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, 5)).unwrap().is_black());
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 18);
     }
 
     #[test]
     fn test_count_filled_cells() {
         let grid = CrosswordGrid::new_single_word("ALPHA");
-        assert!(grid.cell_map.get(&Location(0,0)).unwrap().contains_letter());
+        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().contains_letter());
 
         for i in 0..4 {
             assert_eq!(grid.count_filled_cells_col(i), 1);
