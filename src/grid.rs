@@ -95,8 +95,52 @@ impl Cell {
 }
 
 #[derive(Debug)]
+struct WordPlacement {
+    start_location: (isize, isize),
+    end_location: (isize, isize),
+}
+
+#[derive(Debug)]
 struct Word {
     word_text: String,
+    placement: Option<WordPlacement>,
+    across: bool,
+}
+
+impl Word {
+    fn new(string: &str, start_location: (isize, isize), across: bool) -> Self {
+        let mut end_location = start_location.clone();
+        if across {
+            end_location.0 += string.len() as isize;
+        } else {
+            end_location.1 += string.len() as isize;
+        }
+        let placement = WordPlacement {
+            start_location,
+            end_location,
+        };
+        Word {
+            word_text: string.to_string(),
+            placement: Some(placement),
+            across,
+        }
+    }
+
+    fn get_location(&self) -> Option<((isize, isize), (isize, isize))> {
+        if let Some(word_placement) = &self.placement {
+            Some((word_placement.start_location, word_placement.end_location))
+        } else {
+            None
+        }
+    }
+
+    fn remove_placement(&mut self) {
+        self.placement = None;
+    }
+
+    fn extend_word(&mut self, character: char) {
+        self.word_text.push(character);
+    }
 }
 
 #[derive(Debug)]
@@ -124,6 +168,9 @@ impl CrosswordGrid {
                     cell.update_down_word(None);
                 }
             }
+        }
+        if let Some(word) = self.word_map.get_mut(&word_id) {
+            word.remove_placement();
         }
     }
 
@@ -240,16 +287,16 @@ impl CrosswordGridBuilder {
                     self.cell_map.insert(location, Cell::empty(location));
                 } else {
                     if let Some(word_id) = self.current_across_word_id {
-                        self.word_map.get_mut(&word_id).unwrap().word_text.push(c);
+                        self.word_map.get_mut(&word_id).unwrap().extend_word(c);
                     } else {
-                        self.word_map.insert(self.word_index, Word { word_text: c.to_string() });
+                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, true));
                         self.current_across_word_id = Some(self.word_index);
                         self.word_index += 1;
                     }
                     if let Some(word_id) = *self.current_down_word_ids.get(&self.col).unwrap() {
-                        self.word_map.get_mut(&word_id).unwrap().word_text.push(c);
+                        self.word_map.get_mut(&word_id).unwrap().extend_word(c);
                     } else {
-                        self.word_map.insert(self.word_index, Word { word_text: c.to_string() });
+                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, false));
                         self.current_down_word_ids.insert(self.col, Some(self.word_index));
                         self.word_index += 1;
                     }
