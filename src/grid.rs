@@ -209,7 +209,11 @@ impl CrosswordGridBuilder {
 
     pub fn from_file(mut self, filename: &str) -> CrosswordGrid {
         let contents = fs::read_to_string(filename).expect("Unable to read file");
-        let characters: Vec<char> = contents.chars().collect();
+        self.from_string(&contents)
+    }
+
+    pub fn from_string(mut self, string: &str) -> CrosswordGrid {
+        let characters: Vec<char> = string.chars().collect();
 
         for c in characters {
             if c == '\n' {
