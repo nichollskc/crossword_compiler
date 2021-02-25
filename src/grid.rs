@@ -316,11 +316,7 @@ impl CrosswordGrid {
         }
     }
 
-    /// Trim the grid so that there is exactly one row and column of empty
-    /// cells on either side of the grid
-    pub fn fit_to_size(&mut self) {
-        self.check_valid();
-
+    fn ensure_buffer_exists(&mut self) {
         if self.count_filled_cells_row(self.top_left_cell_index.0) > 0 {
             self.add_empty_row(self.top_left_cell_index.0 - 1);
         }
@@ -335,12 +331,67 @@ impl CrosswordGrid {
         }
     }
 
+    fn remove_row(&mut self, row: isize) {
+        let mut col = self.top_left_cell_index.1;
+        while col <= self.bottom_right_cell_index.1 {
+            self.cell_map.remove(&Location(row, col));
+            col += 1;
+        }
+        if row == self.bottom_right_cell_index.0 {
+            self.bottom_right_cell_index = self.bottom_right_cell_index.relative_location(-1, 0);
+        } else if row == self.top_left_cell_index.0 {
+            self.top_left_cell_index = self.top_left_cell_index.relative_location(1, 0);
+        }
+    }
+
+    fn remove_col(&mut self, col: isize) {
+        let mut row = self.top_left_cell_index.0;
+        while row <= self.bottom_right_cell_index.0 {
+            self.cell_map.remove(&Location(row, col));
+            row += 1;
+        }
+        if col == self.bottom_right_cell_index.1 {
+            self.bottom_right_cell_index = self.bottom_right_cell_index.relative_location(0, -1);
+        } else if col == self.top_left_cell_index.1 {
+            self.top_left_cell_index = self.top_left_cell_index.relative_location(0, 1);
+        }
+    }
+
+    fn remove_excess_empty(&mut self) {
+        // Remove excess rows
+        while self.count_filled_cells_row(self.top_left_cell_index.0 + 1) == 0 {
+            self.remove_row(self.top_left_cell_index.0)
+        }
+        while self.count_filled_cells_row(self.bottom_right_cell_index.0 - 1) == 0 {
+            self.remove_row(self.bottom_right_cell_index.0)
+        }
+
+        // Remove excess columns
+        while self.count_filled_cells_col(self.top_left_cell_index.1 + 1) == 0 {
+            self.remove_col(self.top_left_cell_index.1)
+        }
+        while self.count_filled_cells_col(self.bottom_right_cell_index.1 - 1) == 0 {
+            self.remove_col(self.bottom_right_cell_index.1)
+        }
+    }
+
+    /// Trim the grid so that there is exactly one row and column of empty
+    /// cells on either side of the grid
+    pub fn fit_to_size(&mut self) {
+        self.check_valid();
+
+        // First make sure we've got at least one buffer row and buffer column
+        self.ensure_buffer_exists();
+
+        // Then check we don't have too many empty rows or columns
+        self.remove_excess_empty();
+    }
+
     fn count_filled_cells_row(&self, row: isize) -> usize {
         let mut col = self.top_left_cell_index.1;
         let mut filled_count: usize = 0;
 
         while col <= self.bottom_right_cell_index.1 {
-            println!("{} {}", row, col);
             if self.cell_map.get(&Location(row, col)).unwrap().contains_letter() {
                 filled_count += 1;
             }
@@ -584,6 +635,21 @@ mod tests {
         }
         for i in 0..10 {
             assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+        }
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/blank_space.txt");
+        // Number of non-empty cells shouldn't change
+        grid.fit_to_size();
+        println!("Grid coords {:#?} {:#?}", grid.top_left_cell_index, grid.bottom_right_cell_index);
+        assert_eq!(grid.cell_map.len(), 12*11);
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize + 4), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize + 4), col_counts[i]);
         }
     }
 }
