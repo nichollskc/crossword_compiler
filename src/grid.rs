@@ -108,6 +108,11 @@ pub struct CrosswordGrid {
 }
 
 impl CrosswordGrid {
+    pub fn new_single_word(word: &str) -> Self {
+        let builder = CrosswordGridBuilder::new();
+        builder.from_string(word)
+    }
+
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
         for (location, cell) in self.cell_map.iter_mut() {
@@ -153,8 +158,8 @@ impl CrosswordGrid {
     }
 
     pub fn check_valid(&self) {
-        assert!(self.top_left_cell_index.0 < self.bottom_right_cell_index.0);
-        assert!(self.top_left_cell_index.1 < self.bottom_right_cell_index.1);
+        assert!(self.top_left_cell_index.0 <= self.bottom_right_cell_index.0);
+        assert!(self.top_left_cell_index.1 <= self.bottom_right_cell_index.1);
 
         let mut row = self.top_left_cell_index.0;
         let mut col = self.top_left_cell_index.1;
