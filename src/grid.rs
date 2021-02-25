@@ -34,18 +34,18 @@ impl FilledCell {
 #[derive(Debug)]
 struct Cell {
     fill_status: FillStatus,
-    location: (isize, isize),
+    location: Location,
 }
 
 impl Cell {
-    fn new(letter: char, location: (isize, isize), across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
+    fn new(letter: char, location: Location, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
         Cell {
             fill_status: FillStatus::Filled(FilledCell::new(letter, across_word_id, down_word_id)),
             location,
         }
     }
 
-    fn empty(location: (isize, isize)) -> Self {
+    fn empty(location: Location) -> Self {
         Cell {
             fill_status: FillStatus::Empty,
             location,
@@ -92,12 +92,31 @@ impl Cell {
             false
         }
     }
+
+    fn set_black(&mut self) {
+        self.fill_status = FillStatus::Black;
+    }
+}
+
+#[derive(Clone,Copy,Debug,Eq,Hash)]
+struct Location(isize, isize);
+
+impl PartialEq for Location {
+    fn eq(&self, other: &Location) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+impl Location {
+    fn relative_location(&self, move_across: isize, move_down: isize) -> Location {
+        Location(self.0 + move_across, self.1 + move_down)
+    }
 }
 
 #[derive(Debug)]
 struct WordPlacement {
-    start_location: (isize, isize),
-    end_location: (isize, isize),
+    start_location: Location,
+    end_location: Location,
 }
 
 #[derive(Debug)]
@@ -108,7 +127,7 @@ struct Word {
 }
 
 impl Word {
-    fn new(string: &str, start_location: (isize, isize), across: bool) -> Self {
+    fn new(string: &str, start_location: Location, across: bool) -> Self {
         let mut end_location = start_location.clone();
         if across {
             end_location.0 += string.len() as isize;
@@ -126,7 +145,7 @@ impl Word {
         }
     }
 
-    fn get_location(&self) -> Option<((isize, isize), (isize, isize))> {
+    fn get_location(&self) -> Option<(Location, Location)> {
         if let Some(word_placement) = &self.placement {
             Some((word_placement.start_location, word_placement.end_location))
         } else {
@@ -145,10 +164,10 @@ impl Word {
 
 #[derive(Debug)]
 pub struct CrosswordGrid {
-    cell_map: HashMap<(isize, isize), Cell>,
+    cell_map: HashMap<Location, Cell>,
     word_map: HashMap<usize, Word>,
-    top_left_cell_index: (isize, isize),
-    bottom_right_cell_index: (isize, isize),
+    top_left_cell_index: Location,
+    bottom_right_cell_index: Location,
 }
 
 impl CrosswordGrid {
@@ -213,7 +232,7 @@ impl CrosswordGrid {
 
         while row < self.bottom_right_cell_index.0 {
             while col < self.bottom_right_cell_index.1 {
-                assert!(self.cell_map.contains_key(&(row, col)));
+                assert!(self.cell_map.contains_key(&Location(row, col)));
                 col += 1;
             }
             row += 1;
@@ -233,7 +252,7 @@ impl CrosswordGrid {
 }
 
 pub struct CrosswordGridBuilder {
-    cell_map: HashMap<(isize, isize), Cell>,
+    cell_map: HashMap<Location, Cell>,
     word_map: HashMap<usize, Word>,
     current_across_word_id: Option<usize>,
     current_down_word_ids: HashMap<isize, Option<usize>>,
@@ -276,7 +295,7 @@ impl CrosswordGridBuilder {
                 if self.row == 0 {
                     self.current_down_word_ids.insert(self.col, None);
                 }
-                let location = (self.row, self.col);
+                let location = Location(self.row, self.col);
 
                 if c == ' ' {
                     // End any existing words we have
@@ -315,8 +334,8 @@ impl CrosswordGridBuilder {
         let mut grid = CrosswordGrid {
             cell_map: self.cell_map,
             word_map: self.word_map,
-            top_left_cell_index: (0, 0),
-            bottom_right_cell_index: (self.row, self.max_col),
+            top_left_cell_index: Location(0, 0),
+            bottom_right_cell_index: Location(self.row, self.max_col),
         };
 
         let mut word_ids: Vec<usize> = vec![];
