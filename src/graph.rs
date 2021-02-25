@@ -151,13 +151,7 @@ impl Graph {
 
     /// Counts cycles in the graph, with the assumption that it is connected
     pub fn count_cycles(&self) -> usize {
-        let node_visits = self.traverse_count_node_visits();
-        let mut cycles: usize = 0;
-        for (node_id, visit_count) in node_visits.iter() {
-            assert!(*visit_count > 0);
-            cycles += visit_count - 1;
-        }
-        cycles
+        self.count_edges() + 1 - self.num_nodes
     }
 
     fn _get_edge_list(&self, node_id: usize) -> Vec<(usize, usize)> {
