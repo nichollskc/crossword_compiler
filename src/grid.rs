@@ -96,6 +96,22 @@ impl Cell {
     fn set_black(&mut self) {
         self.fill_status = FillStatus::Black;
     }
+
+    fn contains_letter(&self) -> bool {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn to_char(&self) -> char {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
+            filled_cell.letter
+        } else {
+            ' '
+        }
+    }
 }
 
 #[derive(Clone,Copy,Debug,Eq,Hash)]
@@ -130,9 +146,9 @@ impl Word {
     fn new(string: &str, start_location: Location, across: bool) -> Self {
         let mut end_location = start_location.clone();
         if across {
-            end_location.0 += string.len() as isize;
-        } else {
             end_location.1 += string.len() as isize;
+        } else {
+            end_location.0 += string.len() as isize;
         }
         let placement = WordPlacement {
             start_location,
@@ -245,6 +261,89 @@ impl CrosswordGrid {
         graph
     }
 
+    fn add_empty_row(&mut self, new_row: isize) {
+        let mut col = self.top_left_cell_index.1;
+        while col <= self.bottom_right_cell_index.1 {
+            let location = Location(new_row, col);
+            self.cell_map.insert(location, Cell::empty(location));
+            col += 1;
+        }
+    }
+
+    fn add_empty_col(&mut self, new_col: isize) {
+        let mut row = self.top_left_cell_index.0;
+        while row <= self.bottom_right_cell_index.0 {
+            let location = Location(row, new_col);
+            self.cell_map.insert(location, Cell::empty(location));
+            row += 1;
+        }
+    }
+
+    /// Trim the grid so that there is exactly one row and column of empty
+    /// cells on either side of the grid
+    fn fit_to_size(&mut self) {
+        self.check_valid();
+
+        if self.count_filled_cells_row(self.top_left_cell_index.0) > 0 {
+            self.add_empty_row(self.top_left_cell_index.0 - 1);
+        }
+        if self.count_filled_cells_row(self.bottom_right_cell_index.0) > 0 {
+            self.add_empty_row(self.bottom_right_cell_index.0 - 1);
+        }
+        if self.count_filled_cells_col(self.top_left_cell_index.1) > 0 {
+            self.add_empty_col(self.top_left_cell_index.1 - 1);
+        }
+        if self.count_filled_cells_col(self.bottom_right_cell_index.1) > 0 {
+            self.add_empty_col(self.bottom_right_cell_index.1 - 1);
+        }
+    }
+
+    fn count_filled_cells_row(&self, row: isize) -> usize {
+        let mut col = self.top_left_cell_index.1;
+        let mut filled_count: usize = 0;
+
+        while col <= self.bottom_right_cell_index.1 {
+            println!("{} {}", row, col);
+            if self.cell_map.get(&Location(row, col)).unwrap().contains_letter() {
+                filled_count += 1;
+            }
+            col += 1;
+        }
+        filled_count
+    }
+
+    fn count_filled_cells_col(&self, col: isize) -> usize {
+        let mut row = self.top_left_cell_index.0;
+        let mut filled_count: usize = 0;
+
+        while row <= self.bottom_right_cell_index.0 {
+            if self.cell_map.get(&Location(row, col)).unwrap().contains_letter() {
+                filled_count += 1;
+            }
+            row += 1;
+        }
+        filled_count
+    }
+
+    pub fn to_string(&self) -> String {
+        self.check_valid();
+
+        let mut string: String = String::from("");
+        let mut row = self.top_left_cell_index.0;
+        let mut col = self.top_left_cell_index.1;
+        while row <= self.bottom_right_cell_index.0 {
+            while col <= self.bottom_right_cell_index.1 {
+                let c = self.cell_map.get(&Location(row, col)).unwrap().to_char();
+                string.push(c);
+                col += 1;
+            }
+            col = self.top_left_cell_index.1;
+            row += 1;
+            string.push('\n');
+        }
+        string
+    }
+
     pub fn check_valid(&self) {
         assert!(self.top_left_cell_index.0 <= self.bottom_right_cell_index.0);
         assert!(self.top_left_cell_index.1 <= self.bottom_right_cell_index.1);
@@ -252,11 +351,15 @@ impl CrosswordGrid {
         let mut row = self.top_left_cell_index.0;
         let mut col = self.top_left_cell_index.1;
 
-        while row < self.bottom_right_cell_index.0 {
-            while col < self.bottom_right_cell_index.1 {
-                assert!(self.cell_map.contains_key(&Location(row, col)));
+        while row <= self.bottom_right_cell_index.0 {
+            while col <= self.bottom_right_cell_index.1 {
+                let present = self.cell_map.contains_key(&Location(row, col));
+                if !present {
+                    panic!("Cell not present in grid {}, {}", row, col);
+                }
                 col += 1;
             }
+            col = self.top_left_cell_index.1;
             row += 1;
         }
 
@@ -283,6 +386,7 @@ pub struct CrosswordGridBuilder {
     max_col: isize,
     index: usize,
     word_index: usize,
+    last_location: Location,
 }
 
 impl CrosswordGridBuilder {
@@ -297,6 +401,7 @@ impl CrosswordGridBuilder {
             index: 0,
             max_col: 0,
             word_index: 0,
+            last_location: Location(0, 0),
         }
     }
 
@@ -318,6 +423,7 @@ impl CrosswordGridBuilder {
                     self.current_down_word_ids.insert(self.col, None);
                 }
                 let location = Location(self.row, self.col);
+                self.last_location = location;
 
                 if c == ' ' {
                     // End any existing words we have
@@ -357,7 +463,7 @@ impl CrosswordGridBuilder {
             cell_map: self.cell_map,
             word_map: self.word_map,
             top_left_cell_index: Location(0, 0),
-            bottom_right_cell_index: Location(self.row, self.max_col),
+            bottom_right_cell_index: self.last_location,
         };
 
         let mut word_ids: Vec<usize> = vec![];
@@ -379,8 +485,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fill_black_cells() {
+    fn test_fill_black_cells() {
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        println!("{:#?}", grid);
+        grid.fit_to_size();
+        println!("{:#?}", grid);
         grid.fill_black_cells();
+    }
+
+    #[test]
+    fn test_count_filled_cells() {
+        let grid = CrosswordGrid::new_single_word("ALPHA");
+        assert!(grid.cell_map.get(&Location(0,0)).unwrap().contains_letter());
+
+        for i in 0..4 {
+            assert_eq!(grid.count_filled_cells_col(i), 1);
+        }
+        assert_eq!(grid.count_filled_cells_row(0), 5);
+
+        let grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+        }
     }
 }
