@@ -202,6 +202,13 @@ impl CrosswordGrid {
     }
 
     fn fill_black_cells(&mut self) {
+        // Clear black cells before starting
+        for (location, cell) in self.cell_map.iter_mut() {
+            if let FillStatus::Black = cell.fill_status {
+                cell.fill_status = FillStatus::Empty;
+            }
+        }
+
         for word in self.word_map.values() {
             if let Some((start_location, end_location)) = word.get_location() {
                 let mut black_cells: Vec<Location> = vec![start_location.relative_location(0, -1),
