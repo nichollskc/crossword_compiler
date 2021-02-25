@@ -176,6 +176,28 @@ impl CrosswordGrid {
         builder.from_string(word)
     }
 
+    fn fill_black_cells(&mut self) {
+        for word in self.word_map.values() {
+            if let Some((start_location, end_location)) = word.get_location() {
+                let mut black_cells: Vec<Location> = vec![start_location.relative_location(0, -1),
+                                                          start_location.relative_location(-1, 0),
+                                                          end_location.relative_location(0, 1),
+                                                          end_location.relative_location(1, 0)];
+                if word.across {
+                    black_cells.push(start_location.relative_location(0, 1));
+                    black_cells.push(end_location.relative_location(0, 1));
+                } else {
+                    black_cells.push(start_location.relative_location(1, 0));
+                    black_cells.push(end_location.relative_location(1, 0));
+                }
+
+                for cell_location in black_cells {
+                    self.cell_map.get_mut(&cell_location).unwrap().set_black();
+                }
+            }
+        }
+    }
+
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
         for (location, cell) in self.cell_map.iter_mut() {
@@ -349,5 +371,16 @@ impl CrosswordGridBuilder {
             grid.remove_word(word_id);
         }
         grid
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fill_black_cells() {
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fill_black_cells();
     }
 }
