@@ -5,14 +5,7 @@ use std::fs;
 
 use crate::graph::Graph;
 
-#[derive(Debug)]
-enum FillStatus {
-    Filled(FilledCell),
-    // Nothing known about cell
-    Empty,
-    // Must be black - just before word start or just after word end
-    Black,
-}
+static WORD_BOUNDARY: char = '*';
 
 #[derive(Clone,Copy,Debug)]
 struct FilledCell {
@@ -33,43 +26,43 @@ impl FilledCell {
 
 #[derive(Debug)]
 struct Cell {
-    fill_status: FillStatus,
+    filling: Option<FilledCell>,
     location: Location,
 }
 
 impl Cell {
     fn new(letter: char, location: Location, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
         Cell {
-            fill_status: FillStatus::Filled(FilledCell::new(letter, across_word_id, down_word_id)),
+            filling: Some(FilledCell::new(letter, across_word_id, down_word_id)),
             location,
         }
     }
 
     fn empty(location: Location) -> Self {
         Cell {
-            fill_status: FillStatus::Empty,
+            filling: None,
             location,
         }
     }
 
     fn update_across_word(&mut self, across_word_id: Option<usize>) {
-        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
-            self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
-                                                                  across_word_id,
-                                                                  filled_cell.down_word_id));
+        if let Some(mut filled_cell) = self.filling {
+            self.filling = Some(FilledCell::new(filled_cell.letter,
+                                                across_word_id,
+                                                filled_cell.down_word_id));
         }
     }
 
     fn update_down_word(&mut self, down_word_id: Option<usize>) {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
-            self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
-                                                                  filled_cell.across_word_id,
-                                                                  down_word_id));
+        if let Some(filled_cell) = self.filling {
+            self.filling = Some(FilledCell::new(filled_cell.letter,
+                                                filled_cell.across_word_id,
+                                                down_word_id));
         }
     }
 
     fn get_down_word_id(&self) -> Option<usize> {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
+        if let Some(filled_cell) = self.filling {
             filled_cell.down_word_id
         } else {
             None
@@ -77,36 +70,35 @@ impl Cell {
     }
 
     fn get_across_word_id(&self) -> Option<usize> {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
+        if let Some(filled_cell) = self.filling {
             filled_cell.across_word_id
         } else {
             None
         }
     }
 
+    /// Checks whether this cell is an intersection between the inner parts of two words.
+    /// I.e. does this cell have an across word and a down word AND is this cell
+    /// really a part of these words, i.e. not the WORD_BOUNDARY character.
     fn is_intersection(&self) -> bool {
         if let (Some(across), Some(down)) = (self.get_across_word_id(),
                                              self.get_down_word_id()) {
-            true
+            self.to_char() != WORD_BOUNDARY
         } else {
             false
         }
     }
 
-    fn set_black(&mut self) {
-        self.fill_status = FillStatus::Black;
-    }
-
     fn contains_letter(&self) -> bool {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
-            true
+        if let Some(filled_cell) = self.filling {
+            self.to_char() != WORD_BOUNDARY
         } else {
             false
         }
     }
 
     fn to_char(&self) -> char {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
+        if let Some(filled_cell) = self.filling {
             filled_cell.letter
         } else {
             ' '
@@ -114,11 +106,7 @@ impl Cell {
     }
 
     fn is_black(&self) -> bool {
-        if let FillStatus::Black = self.fill_status {
-            true
-        } else {
-            false
-        }
+        self.to_char() == WORD_BOUNDARY
     }
 }
 
@@ -206,44 +194,20 @@ pub struct CrosswordGrid {
 impl CrosswordGrid {
     pub fn new_single_word(word: &str) -> Self {
         let builder = CrosswordGridBuilder::new();
-        builder.from_string(word)
-    }
-
-    fn fill_black_cells(&mut self) {
-        // Clear black cells before starting
-        for (location, cell) in self.cell_map.iter_mut() {
-            if let FillStatus::Black = cell.fill_status {
-                cell.fill_status = FillStatus::Empty;
-            }
+        let mut complete_word: String = word.to_string();
+        if !word.starts_with(&WORD_BOUNDARY.to_string()) {
+            complete_word = format!("{}{}", &WORD_BOUNDARY.to_string(), &complete_word);
         }
-
-        for word in self.word_map.values() {
-            if let Some((start_location, end_location)) = word.get_location() {
-                let mut black_cells: Vec<Location> = vec![];
-
-                if word.across {
-                    black_cells.push(start_location.relative_location(0, -1));
-                    black_cells.push(end_location.relative_location(0, 1));
-                } else {
-                    black_cells.push(start_location.relative_location(-1, 0));
-                    black_cells.push(end_location.relative_location(1, 0));
-                }
-
-                for cell_location in black_cells {
-                    if let Some(cell) = self.cell_map.get_mut(&cell_location) {
-                        cell.set_black();
-                    } else {
-                        panic!("Cell doesn't exist! {:#?}, {:#?}", cell_location, word);
-                    }
-                }
-            }
+        if !word.ends_with(&WORD_BOUNDARY.to_string()) {
+            complete_word = format!("{}{}", &complete_word, &WORD_BOUNDARY.to_string());
         }
+        builder.from_string(&complete_word)
     }
 
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
         for (location, cell) in self.cell_map.iter_mut() {
-            if let FillStatus::Filled(mut filled_cell) = cell.fill_status {
+            if let Some(mut filled_cell) = cell.filling {
                 if filled_cell.across_word_id == Some(word_id) {
                     cell.update_across_word(None);
                 }
@@ -543,6 +507,12 @@ impl CrosswordGridBuilder {
                                                    location,
                                                    self.current_across_word_id,
                                                    *self.current_down_word_ids.get(&self.col).unwrap()));
+
+                    if c == WORD_BOUNDARY {
+                        // End any existing words we have
+                        self.current_across_word_id = None;
+                        self.current_down_word_ids.insert(self.col, None);
+                    }
                 }
                 self.col += 1;
                 self.index += 1;
@@ -580,25 +550,23 @@ mod tests {
         println!("{:#?}", grid);
         grid.fit_to_size();
         println!("{:#?}", grid);
-        grid.fill_black_cells();
 
         assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 2);
 
-        assert!(grid.cell_map.get(&Location(0, -1)).unwrap().is_black());
-        assert!(grid.cell_map.get(&Location(0, 5)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, 6)).unwrap().is_black());
 
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
         grid.fit_to_size();
-        grid.fill_black_cells();
         assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 18);
     }
 
     #[test]
     fn test_count_filled_cells() {
         let grid = CrosswordGrid::new_single_word("ALPHA");
-        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().contains_letter());
+        assert!(grid.cell_map.get(&Location(0, 1)).unwrap().contains_letter());
 
-        for i in 0..4 {
+        for i in 1..5 {
             assert_eq!(grid.count_filled_cells_col(i), 1);
         }
         assert_eq!(grid.count_filled_cells_row(0), 5);
@@ -608,10 +576,10 @@ mod tests {
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
 
         for i in 0..9 {
-            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+            assert_eq!(grid.count_filled_cells_row(i as isize + 1), row_counts[i]);
         }
         for i in 0..10 {
-            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+            assert_eq!(grid.count_filled_cells_col(i as isize + 1), col_counts[i]);
         }
     }
 
@@ -631,10 +599,10 @@ mod tests {
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
 
         for i in 0..9 {
-            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+            assert_eq!(grid.count_filled_cells_row(i as isize + 1), row_counts[i]);
         }
         for i in 0..10 {
-            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+            assert_eq!(grid.count_filled_cells_col(i as isize + 1), col_counts[i]);
         }
 
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/blank_space.txt");

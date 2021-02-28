@@ -3,6 +3,7 @@ use crossword;
 #[test]
 fn read_from_file() {
     let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+    println!("{:#?}", grid);
     assert_eq!(grid.count_words(), 10);
     assert_eq!(grid.count_intersections(), 11);
     assert_eq!(grid.to_graph().count_cycles(), 2);
