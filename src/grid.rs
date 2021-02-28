@@ -72,7 +72,9 @@ impl Cell {
         }
     }
 
-    fn add_word(&mut self, word_id: usize, letter: char, across: bool) {
+    fn add_word(&mut self, word_id: usize, letter: char, across: bool) -> bool {
+        let mut success = true;
+
         let mut across_word_id: Option<usize> = None;
         let mut down_word_id: Option<usize> = None;
         if across {
@@ -81,38 +83,47 @@ impl Cell {
             down_word_id = Some(word_id);
         }
 
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
-            let existing_across = filled_cell.across_word_id;
-            let existing_down = filled_cell.down_word_id;
+        match self.fill_status {
+            FillStatus::Filled(filled_cell) => {
+                let existing_across = filled_cell.across_word_id;
+                let existing_down = filled_cell.down_word_id;
 
-            if across {
-                // We are updating across word id, so can happily keep the existing down word id
-                down_word_id = existing_down;
-                if existing_across.is_some() {
-                    // Existing ID this is a problem if the new id doesn't match the old ID
-                    assert_eq!(existing_across, across_word_id,
-                               "Tried to add word id {} to cell {:?} but word id already exists {}",
-                               across_word_id.unwrap(), self.location, existing_across.unwrap());
+                if across {
+                    // We are updating across word id, so can happily keep the existing down word id
+                    down_word_id = existing_down;
+                    if existing_across.is_some() && existing_across != across_word_id {
+                        // Existing ID this is a problem if the new id doesn't match the old ID
+                        println!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
+                        success = false
+                    }
+                } else {
+                    // We are updating down word id, so can happily keep the existing across word id
+                    across_word_id = existing_across;
+
+                    if existing_down.is_some() && existing_down != down_word_id {
+                        // Existing ID this is a problem if the new id doesn't match the old ID
+                        println!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
+                        success = false
+                    }
                 }
-            } else {
-                // We are updating down word id, so can happily keep the existing across word id
-                across_word_id = existing_across;
 
-                if existing_down.is_some() {
-                    // Existing ID this is a problem if the new id doesn't match the old ID
-                    assert_eq!(existing_down, down_word_id,
-                               "Tried to add word id {} to cell {:?} but word id already exists {}",
-                               down_word_id.unwrap(), self.location, existing_down.unwrap());
+                if filled_cell.letter != letter {
+                    println!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
+                    success = false;
                 }
-            }
-
-            assert_eq!(filled_cell.letter, letter,
-                       "Cell {:?} updated with new word {} where letters mismatch. New: {} Old: {}",
-                       self.location, word_id, letter, filled_cell.letter);
+            },
+            FillStatus::Empty => {},
+            FillStatus::Black => {
+                success = false
+            },
         }
-        self.fill_status = FillStatus::Filled(FilledCell::new(letter,
-                                                              across_word_id,
-                                                              down_word_id));
+
+        if success {
+            self.fill_status = FillStatus::Filled(FilledCell::new(letter,
+                                                                  across_word_id,
+                                                                  down_word_id));
+        }
+        success
     }
 
     fn get_down_word_id(&self) -> Option<usize> {
@@ -189,19 +200,27 @@ impl Location {
     fn relative_location(&self, move_across: isize, move_down: isize) -> Location {
         Location(self.0 + move_across, self.1 + move_down)
     }
+
+    fn relative_location_directed(&self, move_size: isize, to_col: bool) -> Location {
+        if to_col {
+            Location(self.0, self.1 + move_size)
+        } else {
+            Location(self.0 + move_size, self.1)
+        }
+    }
 }
 
 #[derive(Clone,Copy,Debug)]
 struct WordPlacement {
     start_location: Location,
     end_location: Location,
+    across: bool,
 }
 
 #[derive(Clone,Debug)]
 struct Word {
     word_text: String,
     placement: Option<WordPlacement>,
-    across: bool,
 }
 
 impl Word {
@@ -215,17 +234,24 @@ impl Word {
         let placement = WordPlacement {
             start_location,
             end_location,
+            across,
         };
         Word {
             word_text: string.to_string(),
             placement: Some(placement),
-            across,
         }
     }
 
-    fn get_location(&self) -> Option<(Location, Location)> {
+    fn new_unplaced(string: &str) -> Self {
+        Word {
+            word_text: string.to_string(),
+            placement: None,
+        }
+    }
+
+    fn get_location(&self) -> Option<(Location, Location, bool)> {
         if let Some(word_placement) = &self.placement {
-            Some((word_placement.start_location, word_placement.end_location))
+            Some((word_placement.start_location, word_placement.end_location, word_placement.across))
         } else {
             None
         }
@@ -239,11 +265,7 @@ impl Word {
         self.word_text.push(character);
         if let Some(word_placement) = &self.placement {
             let mut new_word_placement = word_placement.clone();
-            if self.across {
-                new_word_placement.end_location = word_placement.end_location.relative_location(0, 1);
-            } else {
-                new_word_placement.end_location = word_placement.end_location.relative_location(1, 0);
-            }
+            new_word_placement.end_location = word_placement.end_location.relative_location_directed(1, word_placement.across);
             self.placement = Some(new_word_placement);
             Some(new_word_placement.end_location)
         } else {
@@ -279,16 +301,10 @@ impl CrosswordGrid {
         }
 
         for word in self.word_map.values() {
-            if let Some((start_location, end_location)) = word.get_location() {
+            if let Some((start_location, end_location, across)) = word.get_location() {
                 let mut black_cells: Vec<Location> = vec![];
-
-                if word.across {
-                    black_cells.push(start_location.relative_location(0, -1));
-                    black_cells.push(end_location.relative_location(0, 1));
-                } else {
-                    black_cells.push(start_location.relative_location(-1, 0));
-                    black_cells.push(end_location.relative_location(1, 0));
-                }
+                black_cells.push(start_location.relative_location_directed(-1, across));
+                black_cells.push(end_location.relative_location_directed(1, across));
 
                 for cell_location in black_cells {
                     if let Some(cell) = self.cell_map.get_mut(&cell_location) {
@@ -336,6 +352,73 @@ impl CrosswordGrid {
         }
     }
 
+    fn cell_is_open(&self, location: Location, across: bool) -> bool {
+        if across {
+            self.cell_is_open_across(location)
+        } else {
+            self.cell_is_open_down(location)
+        }
+    }
+
+    fn find_lowest_unused_word_id(&self) -> usize {
+        let mut word_id: usize = 0;
+        while self.word_map.contains_key(&word_id) {
+            word_id += 1;
+        }
+        word_id
+    }
+
+    fn add_unplaced_word(&mut self, word_text: &str) -> usize {
+        let word = Word::new_unplaced(word_text);
+        let word_id = self.find_lowest_unused_word_id();
+        self.word_map.insert(word_id, word);
+        word_id
+    }
+
+    fn try_place_word_in_cell(&mut self,
+                              location: Location,
+                              word_id: usize,
+                              index_in_word: usize,
+                              across: bool) -> bool {
+        let mut success = true;
+        let mut start_location = location;
+        let word = self.word_map.get(&word_id).unwrap().clone();
+        if self.cell_is_open(location, across) {
+            let cells_before_this = - (index_in_word as isize);
+            let cells_after_this = (word.word_text.len() as isize) - (index_in_word as isize);
+            start_location = location.relative_location_directed(cells_before_this, across);
+            let end_location: Location = location.relative_location_directed(cells_after_this, across);
+            self.expand_to_fit_cell(start_location);
+            self.expand_to_fit_cell(end_location);
+
+            let mut updated_locations: Vec<Location> = vec![];
+
+            let mut working_location = start_location.clone();
+            for letter in word.word_text.chars() {
+                if success {
+                    println!("Trying to add letter {} to cell location {:?}", letter, working_location);
+                    let cell = self.cell_map.get_mut(&working_location).unwrap();
+                    success = cell.add_word(word_id, letter, across);
+                    updated_locations.push(working_location);
+                    working_location = working_location.relative_location_directed(1, across);
+                }
+            }
+
+            if !success {
+                for updated_location in updated_locations {
+                    let cell = self.cell_map.get_mut(&updated_location).unwrap();
+                    cell.remove_word(word_id);
+                }
+            }
+        }
+        if success {
+            self.word_map.insert(word_id, Word::new(&word.word_text, start_location, across));
+        }
+        self.fit_to_size();
+        self.fill_black_cells();
+        success
+    }
+
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
         for (_location, cell) in self.cell_map.iter_mut() {
@@ -375,10 +458,25 @@ impl CrosswordGrid {
         println!("All intersections found {:#?}", edges);
         let mut graph = Graph::new_from_edges(edges);
 
-        for word_id in self.word_map.keys() {
+        for (word_id, _word) in self.word_map.iter().filter(|(_id, w)| w.is_placed()) {
             graph.add_node(*word_id);
         }
         graph
+    }
+
+    fn expand_to_fit_cell(&mut self, location: Location) {
+        while location.0 < self.top_left_cell_index.0 {
+            self.add_empty_row(self.top_left_cell_index.0 - 1);
+        }
+        while location.0 > self.bottom_right_cell_index.0 {
+            self.add_empty_row(self.bottom_right_cell_index.0 + 1);
+        }
+        while location.1 < self.top_left_cell_index.1 {
+            self.add_empty_row(self.top_left_cell_index.1 - 1);
+        }
+        while location.1 > self.bottom_right_cell_index.1 {
+            self.add_empty_row(self.bottom_right_cell_index.1 + 1);
+        }
     }
 
     fn add_empty_row(&mut self, new_row: isize) {
@@ -783,5 +881,29 @@ mod tests {
         assert!(!grid.cell_is_open_across(Location(3, 2)));
         assert!(!grid.cell_is_open_across(Location(3, 3)));
         assert!(grid.cell_is_open_across(Location(3, 5)));
+    }
+
+    #[test]
+    fn add_word_to_grid() {
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+
+        let arrival_word_id = grid.add_unplaced_word("ARRIVAL");
+        let bear_word_id = grid.add_unplaced_word("BEAR");
+        let cup_word_id = grid.add_unplaced_word("CUP");
+        let cap_word_id = grid.add_unplaced_word("CAP");
+        println!("{:#?}", grid);
+
+        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, false));
+
+        let before_failure = grid.to_string();
+        assert!(!grid.try_place_word_in_cell(Location(0, 3), bear_word_id, 1, false));
+        assert_eq!(before_failure, grid.to_string());
+
+        assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
+        assert_eq!(before_failure, grid.to_string());
     }
 }
