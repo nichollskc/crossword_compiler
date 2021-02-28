@@ -5,7 +5,14 @@ use std::fs;
 
 use crate::graph::Graph;
 
-static WORD_BOUNDARY: char = '*';
+#[derive(Debug)]
+enum FillStatus {
+    Filled(FilledCell),
+    // Nothing known about cell
+    Empty,
+    // Must be black - just before word start or just after word end
+    Black,
+}
 
 #[derive(Clone,Copy,Debug)]
 struct FilledCell {
@@ -26,21 +33,21 @@ impl FilledCell {
 
 #[derive(Debug)]
 struct Cell {
-    filling: Option<FilledCell>,
+    fill_status: FillStatus,
     location: Location,
 }
 
 impl Cell {
     fn new(letter: char, location: Location, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
         Cell {
-            filling: Some(FilledCell::new(letter, across_word_id, down_word_id)),
+            fill_status: FillStatus::Filled(FilledCell::new(letter, across_word_id, down_word_id)),
             location,
         }
     }
 
     fn empty(location: Location) -> Self {
         Cell {
-            filling: None,
+            fill_status: FillStatus::Empty,
             location,
         }
     }
@@ -109,7 +116,7 @@ impl Cell {
     }
 
     fn get_down_word_id(&self) -> Option<usize> {
-        if let Some(filled_cell) = self.filling {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.down_word_id
         } else {
             None
@@ -117,35 +124,36 @@ impl Cell {
     }
 
     fn get_across_word_id(&self) -> Option<usize> {
-        if let Some(filled_cell) = self.filling {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.across_word_id
         } else {
             None
         }
     }
 
-    /// Checks whether this cell is an intersection between the inner parts of two words.
-    /// I.e. does this cell have an across word and a down word AND is this cell
-    /// really a part of these words, i.e. not the WORD_BOUNDARY character.
     fn is_intersection(&self) -> bool {
         if let (Some(across), Some(down)) = (self.get_across_word_id(),
                                              self.get_down_word_id()) {
-            self.to_char() != WORD_BOUNDARY
+            true
         } else {
             false
         }
     }
 
+    fn set_black(&mut self) {
+        self.fill_status = FillStatus::Black;
+    }
+
     fn contains_letter(&self) -> bool {
-        if let Some(filled_cell) = self.filling {
-            self.to_char() != WORD_BOUNDARY
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
+            true
         } else {
             false
         }
     }
 
     fn to_char(&self) -> char {
-        if let Some(filled_cell) = self.filling {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.letter
         } else {
             ' '
@@ -153,7 +161,11 @@ impl Cell {
     }
 
     fn is_black(&self) -> bool {
-        self.to_char() == WORD_BOUNDARY
+        if let FillStatus::Black = self.fill_status {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -261,6 +273,37 @@ impl CrosswordGrid {
     pub fn new_single_word(word: &str) -> Self {
         let builder = CrosswordGridBuilder::new();
         builder.from_string(word)
+    }
+
+    fn fill_black_cells(&mut self) {
+        // Clear black cells before starting
+        for (location, cell) in self.cell_map.iter_mut() {
+            if let FillStatus::Black = cell.fill_status {
+                cell.fill_status = FillStatus::Empty;
+            }
+        }
+
+        for word in self.word_map.values() {
+            if let Some((start_location, end_location)) = word.get_location() {
+                let mut black_cells: Vec<Location> = vec![];
+
+                if word.across {
+                    black_cells.push(start_location.relative_location(0, -1));
+                    black_cells.push(end_location.relative_location(0, 1));
+                } else {
+                    black_cells.push(start_location.relative_location(-1, 0));
+                    black_cells.push(end_location.relative_location(1, 0));
+                }
+
+                for cell_location in black_cells {
+                    if let Some(cell) = self.cell_map.get_mut(&cell_location) {
+                        cell.set_black();
+                    } else {
+                        panic!("Cell doesn't exist! {:#?}, {:#?}", cell_location, word);
+                    }
+                }
+            }
+        }
     }
 
     fn remove_word(&mut self, word_id: usize) {
@@ -559,12 +602,6 @@ impl CrosswordGridBuilder {
                                                    location,
                                                    self.current_across_word_id,
                                                    *self.current_down_word_ids.get(&self.col).unwrap()));
-
-                    if c == WORD_BOUNDARY {
-                        // End any existing words we have
-                        self.current_across_word_id = None;
-                        self.current_down_word_ids.insert(self.col, None);
-                    }
                 }
                 self.col += 1;
                 self.index += 1;
