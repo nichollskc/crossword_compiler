@@ -1,11 +1,11 @@
 use std::cmp;
 use log::{info,warn,debug,error};
-use std::collections::{HashSet,HashMap};
+use std::collections::HashMap;
 use std::fs;
 
 use crate::graph::Graph;
 
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 enum FillStatus {
     Filled(FilledCell),
     // Nothing known about cell
@@ -31,7 +31,7 @@ impl FilledCell {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 struct Cell {
     fill_status: FillStatus,
     location: Location,
@@ -53,7 +53,7 @@ impl Cell {
     }
 
     fn remove_word(&mut self, word_id: usize) {
-        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             let mut across_word_id = self.get_across_word_id();
             let mut down_word_id = self.get_down_word_id();
             if across_word_id == Some(word_id) {
@@ -81,7 +81,7 @@ impl Cell {
             down_word_id = Some(word_id);
         }
 
-        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+        if let FillStatus::Filled(filled_cell) = self.fill_status {
             let existing_across = filled_cell.across_word_id;
             let existing_down = filled_cell.down_word_id;
 
@@ -132,8 +132,7 @@ impl Cell {
     }
 
     fn is_intersection(&self) -> bool {
-        if let (Some(across), Some(down)) = (self.get_across_word_id(),
-                                             self.get_down_word_id()) {
+        if self.get_across_word_id().is_some() && self.get_down_word_id().is_some() {
             true
         } else {
             false
@@ -145,7 +144,7 @@ impl Cell {
     }
 
     fn contains_letter(&self) -> bool {
-        if let FillStatus::Filled(filled_cell) = self.fill_status {
+        if let FillStatus::Filled(_filled_cell) = self.fill_status {
             true
         } else {
             false
@@ -198,7 +197,7 @@ struct WordPlacement {
     end_location: Location,
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct Word {
     word_text: String,
     placement: Option<WordPlacement>,
@@ -267,13 +266,13 @@ pub struct CrosswordGrid {
 
 impl CrosswordGrid {
     pub fn new_single_word(word: &str) -> Self {
-        let builder = CrosswordGridBuilder::new();
+        let mut builder = CrosswordGridBuilder::new();
         builder.from_string(word)
     }
 
     fn fill_black_cells(&mut self) {
         // Clear black cells before starting
-        for (location, cell) in self.cell_map.iter_mut() {
+        for (_location, cell) in self.cell_map.iter_mut() {
             if let FillStatus::Black = cell.fill_status {
                 cell.fill_status = FillStatus::Empty;
             }
@@ -319,7 +318,7 @@ impl CrosswordGrid {
 
     fn cell_is_open_across(&self, location: Location) -> bool {
         // If there is already an across word for this cell, can't place another across word here
-        if let Some(word_id) = self.cell_map.get(&location).unwrap().get_across_word_id() {
+        if self.cell_map.get(&location).unwrap().get_across_word_id().is_some() {
             false
         } else {
             let across_relative_moves: Vec<(isize, isize)> = vec![(0, -1), (0, 1)];
@@ -329,7 +328,7 @@ impl CrosswordGrid {
 
     fn cell_is_open_down(&self, location: Location) -> bool {
         // If there is already an down word for this cell, can't place another down word here
-        if let Some(word_id) = self.cell_map.get(&location).unwrap().get_down_word_id() {
+        if self.cell_map.get(&location).unwrap().get_down_word_id().is_some() {
             false
         } else {
             let down_relative_moves: Vec<(isize, isize)> = vec![(-1, 0), (1, 0)];
@@ -339,7 +338,7 @@ impl CrosswordGrid {
 
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
-        for (location, cell) in self.cell_map.iter_mut() {
+        for (_location, cell) in self.cell_map.iter_mut() {
             cell.remove_word(word_id);
         }
         if let Some(word) = self.word_map.get_mut(&word_id) {
@@ -589,12 +588,12 @@ impl CrosswordGridBuilder {
         }
     }
 
-    pub fn from_file(mut self, filename: &str) -> CrosswordGrid {
+    pub fn from_file(&mut self, filename: &str) -> CrosswordGrid {
         let contents = fs::read_to_string(filename).expect("Unable to read file");
         self.from_string(&contents)
     }
 
-    pub fn from_string(mut self, string: &str) -> CrosswordGrid {
+    pub fn from_string(&mut self, string: &str) -> CrosswordGrid {
         let characters: Vec<char> = string.chars().collect();
 
         for c in characters {
@@ -644,8 +643,8 @@ impl CrosswordGridBuilder {
         }
 
         let mut grid = CrosswordGrid {
-            cell_map: self.cell_map,
-            word_map: self.word_map,
+            cell_map: self.cell_map.clone(),
+            word_map: self.word_map.clone(),
             top_left_cell_index: Location(0, 0),
             bottom_right_cell_index: self.last_location,
         };
