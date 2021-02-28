@@ -550,23 +550,25 @@ mod tests {
         println!("{:#?}", grid);
         grid.fit_to_size();
         println!("{:#?}", grid);
+        grid.fill_black_cells();
 
         assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 2);
 
-        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().is_black());
-        assert!(grid.cell_map.get(&Location(0, 6)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, -1)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, 5)).unwrap().is_black());
 
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
         grid.fit_to_size();
+        grid.fill_black_cells();
         assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 18);
     }
 
     #[test]
     fn test_count_filled_cells() {
         let grid = CrosswordGrid::new_single_word("ALPHA");
-        assert!(grid.cell_map.get(&Location(0, 1)).unwrap().contains_letter());
+        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().contains_letter());
 
-        for i in 1..5 {
+        for i in 0..4 {
             assert_eq!(grid.count_filled_cells_col(i), 1);
         }
         assert_eq!(grid.count_filled_cells_row(0), 5);
@@ -576,10 +578,10 @@ mod tests {
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
 
         for i in 0..9 {
-            assert_eq!(grid.count_filled_cells_row(i as isize + 1), row_counts[i]);
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
         }
         for i in 0..10 {
-            assert_eq!(grid.count_filled_cells_col(i as isize + 1), col_counts[i]);
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
         }
     }
 
@@ -599,10 +601,10 @@ mod tests {
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
 
         for i in 0..9 {
-            assert_eq!(grid.count_filled_cells_row(i as isize + 1), row_counts[i]);
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
         }
         for i in 0..10 {
-            assert_eq!(grid.count_filled_cells_col(i as isize + 1), col_counts[i]);
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
         }
 
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/blank_space.txt");
