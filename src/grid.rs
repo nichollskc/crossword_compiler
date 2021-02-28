@@ -160,6 +160,14 @@ impl Cell {
         }
     }
 
+    fn is_empty(&self) -> bool {
+        if let FillStatus::Empty = self.fill_status {
+            true
+        } else {
+            false
+        }
+    }
+
     fn is_black(&self) -> bool {
         if let FillStatus::Black = self.fill_status {
             true
@@ -291,6 +299,41 @@ impl CrosswordGrid {
                     }
                 }
             }
+        }
+    }
+
+    fn neighbouring_cells_empty(&self, location: Location, neighbour_moves: Vec<(isize, isize)>) -> bool {
+        if !self.cell_map.get(&location).unwrap().contains_letter() {
+            // If the cell is empty, it cannot be added to - it is not an open cell
+            false
+        } else {
+            let mut result = false;
+            for relative_move in neighbour_moves {
+                if self.cell_map.get(&location.relative_location(relative_move.0, relative_move.1)).unwrap().is_empty() {
+                    result = true;
+                }
+            }
+            result
+        }
+    }
+
+    fn cell_is_open_across(&self, location: Location) -> bool {
+        // If there is already an across word for this cell, can't place another across word here
+        if let Some(word_id) = self.cell_map.get(&location).unwrap().get_across_word_id() {
+            false
+        } else {
+            let across_relative_moves: Vec<(isize, isize)> = vec![(0, -1), (0, 1)];
+            self.neighbouring_cells_empty(location, across_relative_moves)
+        }
+    }
+
+    fn cell_is_open_down(&self, location: Location) -> bool {
+        // If there is already an down word for this cell, can't place another down word here
+        if let Some(word_id) = self.cell_map.get(&location).unwrap().get_down_word_id() {
+            false
+        } else {
+            let down_relative_moves: Vec<(isize, isize)> = vec![(-1, 0), (1, 0)];
+            self.neighbouring_cells_empty(location, down_relative_moves)
         }
     }
 
@@ -702,5 +745,44 @@ mod tests {
         for i in 0..10 {
             assert_eq!(grid.count_filled_cells_col(i as isize + 4), col_counts[i]);
         }
+    }
+
+    #[test]
+    fn test_open_cells() {
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        println!("{:#?}", grid);
+
+        for i in -1..5 {
+            assert!(!grid.cell_is_open_across(Location(0, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_across(Location(-1, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_across(Location(1, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_down(Location(-1, i)), "Cell (0, {}) should not be open down", i);
+            assert!(!grid.cell_is_open_down(Location(1, i)), "Cell (0, {}) should not be open down", i);
+        }
+
+        for i in 0..4 {
+            assert!(grid.cell_is_open_down(Location(0, i)), "Cell (0, {}) should be open down", i);
+        }
+
+        assert!(!grid.cell_is_open_down(Location(0, -1)));
+        assert!(!grid.cell_is_open_down(Location(0, 5)));
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        println!("{:#?}", grid);
+
+        assert!(grid.cell_is_open_down(Location(2, 0)));
+        assert!(!grid.cell_is_open_down(Location(2, 1)));
+        assert!(!grid.cell_is_open_down(Location(2, 2)));
+        assert!(grid.cell_is_open_down(Location(2, 3)));
+
+        assert!(!grid.cell_is_open_across(Location(3, 0)));
+        assert!(grid.cell_is_open_across(Location(3, 1)));
+        assert!(!grid.cell_is_open_across(Location(3, 2)));
+        assert!(!grid.cell_is_open_across(Location(3, 3)));
+        assert!(grid.cell_is_open_across(Location(3, 5)));
     }
 }
