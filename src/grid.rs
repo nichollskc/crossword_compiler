@@ -188,7 +188,7 @@ impl Cell {
 }
 
 #[derive(Clone,Copy,Debug,Eq,Hash)]
-struct Location(isize, isize);
+pub struct Location(pub isize, pub isize);
 
 impl PartialEq for Location {
     fn eq(&self, other: &Location) -> bool {
@@ -368,18 +368,22 @@ impl CrosswordGrid {
         word_id
     }
 
-    fn add_unplaced_word(&mut self, word_text: &str) -> usize {
+    pub fn add_unplaced_word(&mut self, word_text: &str) -> usize {
         let word = Word::new_unplaced(word_text);
         let word_id = self.find_lowest_unused_word_id();
         self.word_map.insert(word_id, word);
         word_id
     }
 
-    fn try_place_word_in_cell(&mut self,
+    pub fn try_place_word_in_cell(&mut self,
                               location: Location,
                               word_id: usize,
                               index_in_word: usize,
                               across: bool) -> bool {
+        debug!("Trying to add word");
+        self.fit_to_size();
+        self.fill_black_cells();
+
         let mut success = true;
         let mut start_location = location;
         let word = self.word_map.get(&word_id).unwrap().clone();
@@ -472,14 +476,15 @@ impl CrosswordGrid {
             self.add_empty_row(self.bottom_right_cell_index.0 + 1);
         }
         while location.1 < self.top_left_cell_index.1 {
-            self.add_empty_row(self.top_left_cell_index.1 - 1);
+            self.add_empty_col(self.top_left_cell_index.1 - 1);
         }
         while location.1 > self.bottom_right_cell_index.1 {
-            self.add_empty_row(self.bottom_right_cell_index.1 + 1);
+            self.add_empty_col(self.bottom_right_cell_index.1 + 1);
         }
     }
 
     fn add_empty_row(&mut self, new_row: isize) {
+        debug!("Adding new row at {}, top left is {:?}, bottom right is {:?}", new_row, self.top_left_cell_index, self.bottom_right_cell_index);
         let mut col = self.top_left_cell_index.1;
         while col <= self.bottom_right_cell_index.1 {
             let location = Location(new_row, col);
@@ -494,6 +499,7 @@ impl CrosswordGrid {
     }
 
     fn add_empty_col(&mut self, new_col: isize) {
+        debug!("Adding new col at {}", new_col);
         let mut row = self.top_left_cell_index.0;
         while row <= self.bottom_right_cell_index.0 {
             let location = Location(row, new_col);
@@ -608,15 +614,15 @@ impl CrosswordGrid {
         self.check_valid();
 
         let mut string: String = String::from("");
-        let mut row = self.top_left_cell_index.0;
-        let mut col = self.top_left_cell_index.1;
-        while row <= self.bottom_right_cell_index.0 {
-            while col <= self.bottom_right_cell_index.1 {
+        let mut row = self.top_left_cell_index.0 + 1;
+        let mut col = self.top_left_cell_index.1 + 1;
+        while row < self.bottom_right_cell_index.0 {
+            while col < self.bottom_right_cell_index.1 {
                 let c = self.cell_map.get(&Location(row, col)).unwrap().to_char();
                 string.push(c);
                 col += 1;
             }
-            col = self.top_left_cell_index.1;
+            col = self.top_left_cell_index.1 + 1;
             row += 1;
             string.push('\n');
         }
@@ -688,6 +694,7 @@ impl CrosswordGridBuilder {
 
     pub fn from_file(&mut self, filename: &str) -> CrosswordGrid {
         let contents = fs::read_to_string(filename).expect("Unable to read file");
+        println!("File contents: {}", contents);
         self.from_string(&contents)
     }
 
@@ -767,6 +774,7 @@ mod tests {
 
     #[test]
     fn test_fill_black_cells() {
+        crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         println!("{:#?}", grid);
         grid.fit_to_size();
@@ -786,6 +794,7 @@ mod tests {
 
     #[test]
     fn test_count_filled_cells() {
+        crate::logging::init_logger(true);
         let grid = CrosswordGrid::new_single_word("ALPHA");
         assert!(grid.cell_map.get(&Location(0, 0)).unwrap().contains_letter());
 
@@ -808,6 +817,7 @@ mod tests {
 
     #[test]
     fn test_fit_to_size() {
+        crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         grid.fit_to_size();
         assert_eq!(grid.cell_map.len(), 7*3);
@@ -846,6 +856,7 @@ mod tests {
 
     #[test]
     fn test_open_cells() {
+        crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         grid.fit_to_size();
         grid.fill_black_cells();
@@ -885,12 +896,14 @@ mod tests {
 
     #[test]
     fn add_word_to_grid() {
+        crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         grid.fit_to_size();
         grid.fill_black_cells();
 
         let arrival_word_id = grid.add_unplaced_word("ARRIVAL");
-        let bear_word_id = grid.add_unplaced_word("BEAR");
+        let bear_word_id = grid.add_unplaced_word("BEARER");
+        let innards_word_id = grid.add_unplaced_word("INNARDS");
         let cup_word_id = grid.add_unplaced_word("CUP");
         let cap_word_id = grid.add_unplaced_word("CAP");
         println!("{:#?}", grid);
@@ -905,5 +918,15 @@ mod tests {
 
         assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
         assert_eq!(before_failure, grid.to_string());
+        println!("GRID IS HERE");
+        println!("{}", grid.to_string());
+
+        println!("{:#?}", grid);
+        debug!("TESTING");
+        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
+
+        let mut from_file = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
+        debug!("{}", grid.to_string());
+        assert_eq!(from_file.to_string(), grid.to_string());
     }
 }
