@@ -53,7 +53,7 @@ impl Cell {
     }
 
     fn remove_word(&mut self, word_id: usize) {
-        if let Some(mut filled_cell) = self.filling {
+        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
             let mut across_word_id = self.get_across_word_id();
             let mut down_word_id = self.get_down_word_id();
             if across_word_id == Some(word_id) {
@@ -63,11 +63,11 @@ impl Cell {
                 down_word_id = None;
             }
             if across_word_id.is_none() && down_word_id.is_none() {
-                self.filling = None;
+                self.fill_status = FillStatus::Empty;
             } else {
-                self.filling = Some(FilledCell::new(filled_cell.letter,
-                                                    across_word_id,
-                                                    down_word_id));
+                self.fill_status = FillStatus::Filled(FilledCell::new(filled_cell.letter,
+                                                                      across_word_id,
+                                                                      down_word_id));
             }
         }
     }
@@ -81,7 +81,7 @@ impl Cell {
             down_word_id = Some(word_id);
         }
 
-        if let Some(filled_cell) = self.filling {
+        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
             let existing_across = filled_cell.across_word_id;
             let existing_down = filled_cell.down_word_id;
 
@@ -110,9 +110,9 @@ impl Cell {
                        "Cell {:?} updated with new word {} where letters mismatch. New: {} Old: {}",
                        self.location, word_id, letter, filled_cell.letter);
         }
-        self.filling = Some(FilledCell::new(letter,
-                                            across_word_id,
-                                            down_word_id));
+        self.fill_status = FillStatus::Filled(FilledCell::new(letter,
+                                                              across_word_id,
+                                                              down_word_id));
     }
 
     fn get_down_word_id(&self) -> Option<usize> {
@@ -226,22 +226,6 @@ impl Word {
 
     fn remove_placement(&mut self) {
         self.placement = None;
-    }
-
-    fn extend_word_before(&mut self, character: char) -> Option<Location> {
-        self.word_text = format!("{}{}", &character.to_string(), &self.word_text);
-        if let Some(word_placement) = &self.placement {
-            let mut new_word_placement = word_placement.clone();
-            if self.across {
-                new_word_placement.start_location = word_placement.start_location.relative_location(0, -1);
-            } else {
-                new_word_placement.start_location = word_placement.start_location.relative_location(-1, 0);
-            }
-            self.placement = Some(new_word_placement);
-            Some(new_word_placement.start_location)
-        } else {
-            None
-        }
     }
 
     fn extend_word(&mut self, character: char) -> Option<Location> {
