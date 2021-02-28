@@ -243,6 +243,10 @@ impl Word {
             None
         }
     }
+
+    fn is_placed(&self) -> bool {
+        self.get_location().is_some()
+    }
 }
 
 #[derive(Debug)]
@@ -300,8 +304,12 @@ impl CrosswordGrid {
         }
     }
 
-    pub fn count_words(&self) -> usize {
+    pub fn count_all_words(&self) -> usize {
         self.word_map.len()
+    }
+
+    pub fn count_placed_words(&self) -> usize {
+        self.word_map.values().filter(|w| w.is_placed()).count()
     }
 
     pub fn count_intersections(&self) -> usize {
