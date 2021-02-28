@@ -754,16 +754,18 @@ impl CrosswordGridBuilder {
             bottom_right_cell_index: self.last_location,
         };
 
-        let mut word_ids: Vec<usize> = vec![];
+        let mut singleton_word_ids: Vec<usize> = vec![];
         for (word_id, word) in grid.word_map.iter() {
             if word.word_text.len() == 1 {
-                word_ids.push(*word_id);
+                singleton_word_ids.push(*word_id);
             }
         }
 
-        for word_id in word_ids {
+        for word_id in singleton_word_ids {
             grid.remove_word(word_id);
         }
+
+        grid.fit_to_size();
         grid
     }
 }
