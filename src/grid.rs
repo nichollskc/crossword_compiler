@@ -45,20 +45,67 @@ impl Cell {
         }
     }
 
-    fn update_across_word(&mut self, across_word_id: Option<usize>) {
+    fn remove_word(&mut self, word_id: usize) {
         if let Some(mut filled_cell) = self.filling {
-            self.filling = Some(FilledCell::new(filled_cell.letter,
-                                                across_word_id,
-                                                filled_cell.down_word_id));
+            let mut across_word_id = self.get_across_word_id();
+            let mut down_word_id = self.get_down_word_id();
+            if across_word_id == Some(word_id) {
+                across_word_id = None;
+            }
+            if down_word_id == Some(word_id) {
+                down_word_id = None;
+            }
+            if across_word_id.is_none() && down_word_id.is_none() {
+                self.filling = None;
+            } else {
+                self.filling = Some(FilledCell::new(filled_cell.letter,
+                                                    across_word_id,
+                                                    down_word_id));
+            }
         }
     }
 
-    fn update_down_word(&mut self, down_word_id: Option<usize>) {
-        if let Some(filled_cell) = self.filling {
-            self.filling = Some(FilledCell::new(filled_cell.letter,
-                                                filled_cell.across_word_id,
-                                                down_word_id));
+    fn add_word(&mut self, word_id: usize, letter: char, across: bool) {
+        let mut across_word_id: Option<usize> = None;
+        let mut down_word_id: Option<usize> = None;
+        if across {
+            across_word_id = Some(word_id);
+        } else {
+            down_word_id = Some(word_id);
         }
+
+        if let Some(filled_cell) = self.filling {
+            let existing_across = filled_cell.across_word_id;
+            let existing_down = filled_cell.down_word_id;
+
+            if across {
+                // We are updating across word id, so can happily keep the existing down word id
+                down_word_id = existing_down;
+                if existing_across.is_some() {
+                    // Existing ID this is a problem if the new id doesn't match the old ID
+                    assert_eq!(existing_across, across_word_id,
+                               "Tried to add word id {} to cell {:?} but word id already exists {}",
+                               across_word_id.unwrap(), self.location, existing_across.unwrap());
+                }
+            } else {
+                // We are updating down word id, so can happily keep the existing across word id
+                across_word_id = existing_across;
+
+                if existing_down.is_some() {
+                    // Existing ID this is a problem if the new id doesn't match the old ID
+                    assert_eq!(existing_down, down_word_id,
+                               "Tried to add word id {} to cell {:?} but word id already exists {}",
+                               down_word_id.unwrap(), self.location, existing_down.unwrap());
+                }
+            }
+
+            assert_eq!(filled_cell.letter, letter,
+                       "Cell {:?} updated with new word {} where letters mismatch. New: {} Old: {}",
+                       self.location, word_id, letter, filled_cell.letter);
+        }
+        self.filling = Some(FilledCell::new(letter,
+                                            across_word_id,
+                                            down_word_id));
     }
 
     fn get_down_word_id(&self) -> Option<usize> {
@@ -169,7 +216,23 @@ impl Word {
         self.placement = None;
     }
 
-    fn extend_word(&mut self, character: char) {
+    fn extend_word_before(&mut self, character: char) -> Option<Location> {
+        self.word_text = format!("{}{}", &character.to_string(), &self.word_text);
+        if let Some(word_placement) = &self.placement {
+            let mut new_word_placement = word_placement.clone();
+            if self.across {
+                new_word_placement.start_location = word_placement.start_location.relative_location(0, -1);
+            } else {
+                new_word_placement.start_location = word_placement.start_location.relative_location(-1, 0);
+            }
+            self.placement = Some(new_word_placement);
+            Some(new_word_placement.start_location)
+        } else {
+            None
+        }
+    }
+
+    fn extend_word(&mut self, character: char) -> Option<Location> {
         self.word_text.push(character);
         if let Some(word_placement) = &self.placement {
             let mut new_word_placement = word_placement.clone();
@@ -179,6 +242,9 @@ impl Word {
                 new_word_placement.end_location = word_placement.end_location.relative_location(1, 0);
             }
             self.placement = Some(new_word_placement);
+            Some(new_word_placement.end_location)
+        } else {
+            None
         }
     }
 }
@@ -194,27 +260,13 @@ pub struct CrosswordGrid {
 impl CrosswordGrid {
     pub fn new_single_word(word: &str) -> Self {
         let builder = CrosswordGridBuilder::new();
-        let mut complete_word: String = word.to_string();
-        if !word.starts_with(&WORD_BOUNDARY.to_string()) {
-            complete_word = format!("{}{}", &WORD_BOUNDARY.to_string(), &complete_word);
-        }
-        if !word.ends_with(&WORD_BOUNDARY.to_string()) {
-            complete_word = format!("{}{}", &complete_word, &WORD_BOUNDARY.to_string());
-        }
-        builder.from_string(&complete_word)
+        builder.from_string(word)
     }
 
     fn remove_word(&mut self, word_id: usize) {
         self.word_map.remove(&word_id);
         for (location, cell) in self.cell_map.iter_mut() {
-            if let Some(mut filled_cell) = cell.filling {
-                if filled_cell.across_word_id == Some(word_id) {
-                    cell.update_across_word(None);
-                }
-                if filled_cell.down_word_id == Some(word_id) {
-                    cell.update_down_word(None);
-                }
-            }
+            cell.remove_word(word_id);
         }
         if let Some(word) = self.word_map.get_mut(&word_id) {
             word.remove_placement();
