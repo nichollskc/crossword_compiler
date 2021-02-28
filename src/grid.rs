@@ -926,6 +926,7 @@ mod tests {
         assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
 
         let mut from_file = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
+        from_file.fit_to_size();
         debug!("{}", grid.to_string());
         assert_eq!(from_file.to_string(), grid.to_string());
     }
