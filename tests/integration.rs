@@ -7,6 +7,9 @@ fn read_from_file() {
     assert_eq!(grid.count_all_words(), 10);
     assert_eq!(grid.count_intersections(), 11);
     assert_eq!(grid.to_graph().count_cycles(), 2);
+    assert_eq!(grid.get_grid_dimensions(), (9, 10));
+    assert_eq!(grid.count_filled_cells(), 42);
+    assert_eq!(grid.count_empty_cells(), 48);
     grid.check_valid();
 }
 
@@ -22,5 +25,8 @@ fn single_word() {
     assert_eq!(grid.count_all_words(), 1);
     assert_eq!(grid.count_intersections(), 0);
     assert_eq!(grid.to_graph().count_cycles(), 0);
+    assert_eq!(grid.get_grid_dimensions(), (1, 5));
+    assert_eq!(grid.count_empty_cells(), 0);
+    assert_eq!(grid.count_filled_cells(), 5);
     grid.check_valid();
 }
