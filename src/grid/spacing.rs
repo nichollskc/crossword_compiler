@@ -151,3 +151,71 @@ impl CrosswordGrid {
         self.remove_excess_empty();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::CrosswordGridBuilder;
+
+    #[test]
+    fn test_count_filled_cells() {
+        crate::logging::init_logger(true);
+        let grid = CrosswordGrid::new_single_word("ALPHA");
+        assert!(grid.cell_map.get(&Location(0, 0)).unwrap().contains_letter());
+
+        for i in 0..4 {
+            assert_eq!(grid.count_filled_cells_col(i), 1);
+        }
+        assert_eq!(grid.count_filled_cells_row(0), 5);
+
+        let grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+        }
+    }
+
+    #[test]
+    fn test_fit_to_size() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        assert_eq!(grid.cell_map.len(), 7*3);
+        // Shouldn't change size on second call of function
+        grid.fit_to_size();
+        assert_eq!(grid.cell_map.len(), 7*3);
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        // Number of non-empty cells shouldn't change
+        grid.fit_to_size();
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize), col_counts[i]);
+        }
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/blank_space.txt");
+        // Number of non-empty cells shouldn't change
+        grid.fit_to_size();
+        info!("Grid coords {:#?} {:#?}", grid.top_left_cell_index, grid.bottom_right_cell_index);
+        assert_eq!(grid.cell_map.len(), 12*11);
+        let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
+        let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
+
+        for i in 0..9 {
+            assert_eq!(grid.count_filled_cells_row(i as isize + 4), row_counts[i]);
+        }
+        for i in 0..10 {
+            assert_eq!(grid.count_filled_cells_col(i as isize + 4), col_counts[i]);
+        }
+    }
+}

@@ -121,7 +121,108 @@ impl CrosswordGrid {
             self.word_map.insert(word_id, Word::new(&word.word_text, start_location, across));
         }
         self.fit_to_size();
-        self.fill_black_cells();
         success
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::CrosswordGridBuilder;
+
+    #[test]
+    fn test_open_cells() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        debug!("{:#?}", grid);
+
+        for i in -1..5 {
+            assert!(!grid.cell_is_open_across(Location(0, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_across(Location(-1, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_across(Location(1, i)), "Cell (0, {}) should not be open across", i);
+            assert!(!grid.cell_is_open_down(Location(-1, i)), "Cell (0, {}) should not be open down", i);
+            assert!(!grid.cell_is_open_down(Location(1, i)), "Cell (0, {}) should not be open down", i);
+        }
+
+        for i in 0..4 {
+            assert!(grid.cell_is_open_down(Location(0, i)), "Cell (0, {}) should be open down", i);
+        }
+
+        assert!(!grid.cell_is_open_down(Location(0, -1)));
+        assert!(!grid.cell_is_open_down(Location(0, 5)));
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        debug!("{:#?}", grid);
+
+        assert!(grid.cell_is_open_down(Location(2, 0)));
+        assert!(!grid.cell_is_open_down(Location(2, 1)));
+        assert!(!grid.cell_is_open_down(Location(2, 2)));
+        assert!(grid.cell_is_open_down(Location(2, 3)));
+
+        assert!(!grid.cell_is_open_across(Location(3, 0)));
+        assert!(grid.cell_is_open_across(Location(3, 1)));
+        assert!(!grid.cell_is_open_across(Location(3, 2)));
+        assert!(!grid.cell_is_open_across(Location(3, 3)));
+        assert!(grid.cell_is_open_across(Location(3, 5)));
+    }
+
+    #[test]
+    fn test_fill_black_cells() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        debug!("{:#?}", grid);
+        grid.fit_to_size();
+        debug!("{:#?}", grid);
+        grid.fill_black_cells();
+
+        assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 2);
+
+        assert!(grid.cell_map.get(&Location(0, -1)).unwrap().is_black());
+        assert!(grid.cell_map.get(&Location(0, 5)).unwrap().is_black());
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+        assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 18);
+    }
+
+    #[test]
+    fn add_word_to_grid() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        grid.fit_to_size();
+        grid.fill_black_cells();
+
+        let arrival_word_id = grid.add_unplaced_word("ARRIVAL");
+        let bear_word_id = grid.add_unplaced_word("BEARER");
+        let innards_word_id = grid.add_unplaced_word("INNARDS");
+        let cup_word_id = grid.add_unplaced_word("CUP");
+        let cap_word_id = grid.add_unplaced_word("CAP");
+        debug!("{:#?}", grid);
+
+        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, false));
+
+        let before_failure = grid.to_string();
+        assert!(!grid.try_place_word_in_cell(Location(0, 3), bear_word_id, 1, false));
+        assert_eq!(before_failure, grid.to_string());
+
+        assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
+        assert_eq!(before_failure, grid.to_string());
+        info!("{}", grid.to_string());
+
+        debug!("{:#?}", grid);
+        debug!("TESTING");
+        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
+
+        let mut from_file = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
+        from_file.fit_to_size();
+        debug!("{}", grid.to_string());
+        assert_eq!(from_file.to_string(), grid.to_string());
     }
 }
