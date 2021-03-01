@@ -107,7 +107,7 @@ impl Graph {
 
         let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
         let mut edge_stack: Vec<(usize, usize)> = self._get_edge_list(node_id);
-        println!("Edge stack to start {:#?}", edge_stack);
+        debug!("Edge stack to start {:#?}", edge_stack);
 
         while let Some(edge) = edge_stack.pop() {
             // Only traverse edge if we haven't already used it
@@ -116,7 +116,7 @@ impl Graph {
             // Also add the reverse edge to the set of used edges
             let (first, second) = edge;
             used_edges.insert((second, first));
-            println!("Looking at edge {:#?}, already considered {}", edge, edge_already_used);
+            debug!("Looking at edge {:#?}, already considered {}", edge, edge_already_used);
             if !edge_already_used {
                 // Visit the node this edge points to
                 let next_node = edge.1;
@@ -125,7 +125,7 @@ impl Graph {
                 match node_visits.get_mut(&next_node) {
                     Some(visit_count) => *visit_count += 1,
                     None => {
-                        println!("First visit to node {}", next_node);
+                        debug!("First visit to node {}", next_node);
                         node_visits.insert(next_node, 1);
 
                         // If this is our first visit, add all edges onto the stack
@@ -144,7 +144,7 @@ impl Graph {
         for node_id in self.node_map.keys() {
             if !node_visits.contains_key(node_id) {
                 connected = false;
-                println!("Node never reached {}", node_id);
+                debug!("Node never reached {}", node_id);
             }
         }
         connected
@@ -174,7 +174,7 @@ mod tests {
     use super::*;
 
     fn check_graph(graph: Graph, expected_nodes: usize, expected_edges: usize) {
-        println!("Result is {:#?}", graph);
+        debug!("Result is {:#?}", graph);
         assert_eq!(graph.num_nodes, expected_nodes);
         assert_eq!(graph.node_storage.len(), expected_nodes);
         assert_eq!(graph.count_edges(), expected_edges);
@@ -201,22 +201,22 @@ mod tests {
     #[test]
     fn traverse_graph() {
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert_eq!(graph.count_cycles(), 0);
         assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
-        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert_eq!(graph.count_cycles(), 1);
         assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
-        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert_eq!(graph.count_cycles(), 2);
         assert!(graph.is_connected());
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
-        println!("Traversal {:#?}", graph.traverse_count_node_visits());
+        debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert!(!graph.is_connected());
     }
 }

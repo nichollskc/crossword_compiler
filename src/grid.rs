@@ -93,7 +93,7 @@ impl Cell {
                     down_word_id = existing_down;
                     if existing_across.is_some() && existing_across != across_word_id {
                         // Existing ID this is a problem if the new id doesn't match the old ID
-                        println!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
+                        warn!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
                         success = false
                     }
                 } else {
@@ -102,13 +102,13 @@ impl Cell {
 
                     if existing_down.is_some() && existing_down != down_word_id {
                         // Existing ID this is a problem if the new id doesn't match the old ID
-                        println!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
+                        warn!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
                         success = false
                     }
                 }
 
                 if filled_cell.letter != letter {
-                    println!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
+                    info!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
                     success = false;
                 }
             },
@@ -400,7 +400,7 @@ impl CrosswordGrid {
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
                 if success {
-                    println!("Trying to add letter {} to cell location {:?}", letter, working_location);
+                    debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
                     let cell = self.cell_map.get_mut(&working_location).unwrap();
                     success = cell.add_word(word_id, letter, across);
                     updated_locations.push(working_location);
@@ -459,7 +459,7 @@ impl CrosswordGrid {
                             cell.get_down_word_id().unwrap()));
             }
         }
-        println!("All intersections found {:#?}", edges);
+        info!("All intersections found {:#?}", edges);
         let mut graph = Graph::new_from_edges(edges);
 
         for (word_id, _word) in self.word_map.iter().filter(|(_id, w)| w.is_placed()) {
@@ -658,7 +658,7 @@ impl CrosswordGrid {
         }
 
         let graph = self.to_graph();
-        println!("{:#?}", graph);
+        info!("{:#?}", graph);
         assert!(graph.is_connected());
     }
 }
@@ -694,7 +694,7 @@ impl CrosswordGridBuilder {
 
     pub fn from_file(&mut self, filename: &str) -> CrosswordGrid {
         let contents = fs::read_to_string(filename).expect("Unable to read file");
-        println!("File contents: {}", contents);
+        debug!("File contents: {}", contents);
         self.from_string(&contents)
     }
 
@@ -778,9 +778,9 @@ mod tests {
     fn test_fill_black_cells() {
         crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
         grid.fit_to_size();
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
         grid.fill_black_cells();
 
         assert_eq!(grid.cell_map.values().filter(|&x| x.is_black()).count(), 2);
@@ -843,7 +843,7 @@ mod tests {
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/blank_space.txt");
         // Number of non-empty cells shouldn't change
         grid.fit_to_size();
-        println!("Grid coords {:#?} {:#?}", grid.top_left_cell_index, grid.bottom_right_cell_index);
+        info!("Grid coords {:#?} {:#?}", grid.top_left_cell_index, grid.bottom_right_cell_index);
         assert_eq!(grid.cell_map.len(), 12*11);
         let row_counts: Vec<usize> = vec![6, 2, 9, 3, 6, 3, 10, 2, 1];
         let col_counts: Vec<usize> = vec![2, 6, 5, 4, 4, 7, 3, 4, 5, 2];
@@ -862,7 +862,7 @@ mod tests {
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         grid.fit_to_size();
         grid.fill_black_cells();
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
 
         for i in -1..5 {
             assert!(!grid.cell_is_open_across(Location(0, i)), "Cell (0, {}) should not be open across", i);
@@ -882,7 +882,7 @@ mod tests {
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
         grid.fit_to_size();
         grid.fill_black_cells();
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
 
         assert!(grid.cell_is_open_down(Location(2, 0)));
         assert!(!grid.cell_is_open_down(Location(2, 1)));
@@ -908,7 +908,7 @@ mod tests {
         let innards_word_id = grid.add_unplaced_word("INNARDS");
         let cup_word_id = grid.add_unplaced_word("CUP");
         let cap_word_id = grid.add_unplaced_word("CAP");
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
 
         assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, false));
         assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, false));
@@ -920,10 +920,9 @@ mod tests {
 
         assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
         assert_eq!(before_failure, grid.to_string());
-        println!("GRID IS HERE");
-        println!("{}", grid.to_string());
+        info!("{}", grid.to_string());
 
-        println!("{:#?}", grid);
+        debug!("{:#?}", grid);
         debug!("TESTING");
         assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
 
