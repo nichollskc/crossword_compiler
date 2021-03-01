@@ -1,4 +1,13 @@
+use std::cmp;
+use log::{info,warn,debug,error};
+use std::collections::HashMap;
+
 use std::fs;
+
+use super::CrosswordGrid;
+use super::Cell;
+use super::Location;
+use super::Word;
 
 pub struct CrosswordGridBuilder {
     cell_map: HashMap<Location, Cell>,

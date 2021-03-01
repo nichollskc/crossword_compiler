@@ -4,13 +4,16 @@ use log::{info,warn,debug,error};
 use std::collections::HashMap;
 
 use super::CrosswordGrid;
+use super::Location;
+
+use super::Word;
 
 impl CrosswordGrid {
     fn fill_black_cells(&mut self) {
         // Clear black cells before starting
         for (_location, cell) in self.cell_map.iter_mut() {
-            if let FillStatus::Black = cell.fill_status {
-                cell.fill_status = FillStatus::Empty;
+            if cell.is_black() {
+                cell.set_empty();
             }
         }
 
@@ -120,15 +123,5 @@ impl CrosswordGrid {
         self.fit_to_size();
         self.fill_black_cells();
         success
-    }
-
-    fn remove_word(&mut self, word_id: usize) {
-        self.word_map.remove(&word_id);
-        for (_location, cell) in self.cell_map.iter_mut() {
-            cell.remove_word(word_id);
-        }
-        if let Some(word) = self.word_map.get_mut(&word_id) {
-            word.remove_placement();
-        }
     }
 }

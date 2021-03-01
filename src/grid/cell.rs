@@ -32,7 +32,7 @@ impl FilledCell {
 }
 
 #[derive(Clone,Copy,Debug)]
-struct Cell {
+pub(super) struct Cell {
     fill_status: FillStatus,
     location: Location,
 }
@@ -45,14 +45,14 @@ impl Cell {
         }
     }
 
-    fn empty(location: Location) -> Self {
+    pub fn empty(location: Location) -> Self {
         Cell {
             fill_status: FillStatus::Empty,
             location,
         }
     }
 
-    fn remove_word(&mut self, word_id: usize) {
+    pub fn remove_word(&mut self, word_id: usize) {
         if let FillStatus::Filled(filled_cell) = self.fill_status {
             let mut across_word_id = self.get_across_word_id();
             let mut down_word_id = self.get_down_word_id();
@@ -72,7 +72,7 @@ impl Cell {
         }
     }
 
-    fn add_word(&mut self, word_id: usize, letter: char, across: bool) -> bool {
+    pub fn add_word(&mut self, word_id: usize, letter: char, across: bool) -> bool {
         let mut success = true;
 
         let mut across_word_id: Option<usize> = None;
@@ -126,7 +126,7 @@ impl Cell {
         success
     }
 
-    fn get_down_word_id(&self) -> Option<usize> {
+    pub fn get_down_word_id(&self) -> Option<usize> {
         if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.down_word_id
         } else {
@@ -134,7 +134,7 @@ impl Cell {
         }
     }
 
-    fn get_across_word_id(&self) -> Option<usize> {
+    pub fn get_across_word_id(&self) -> Option<usize> {
         if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.across_word_id
         } else {
@@ -142,7 +142,7 @@ impl Cell {
         }
     }
 
-    fn is_intersection(&self) -> bool {
+    pub fn is_intersection(&self) -> bool {
         if self.get_across_word_id().is_some() && self.get_down_word_id().is_some() {
             true
         } else {
@@ -150,11 +150,15 @@ impl Cell {
         }
     }
 
-    fn set_black(&mut self) {
+    pub fn set_empty(&mut self) {
+        self.fill_status = FillStatus::Empty;
+    }
+
+    pub fn set_black(&mut self) {
         self.fill_status = FillStatus::Black;
     }
 
-    fn contains_letter(&self) -> bool {
+    pub fn contains_letter(&self) -> bool {
         if let FillStatus::Filled(_filled_cell) = self.fill_status {
             true
         } else {
@@ -162,7 +166,7 @@ impl Cell {
         }
     }
 
-    fn to_char(&self) -> char {
+    pub fn to_char(&self) -> char {
         if let FillStatus::Filled(filled_cell) = self.fill_status {
             filled_cell.letter
         } else {
@@ -170,7 +174,7 @@ impl Cell {
         }
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         if let FillStatus::Empty = self.fill_status {
             true
         } else {
@@ -178,7 +182,7 @@ impl Cell {
         }
     }
 
-    fn is_black(&self) -> bool {
+    pub fn is_black(&self) -> bool {
         if let FillStatus::Black = self.fill_status {
             true
         } else {

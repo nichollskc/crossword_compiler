@@ -13,13 +13,13 @@ struct WordPlacement {
 }
 
 #[derive(Clone,Debug)]
-struct Word {
-    word_text: String,
+pub(super) struct Word {
+    pub word_text: String,
     placement: Option<WordPlacement>,
 }
 
 impl Word {
-    fn new(string: &str, start_location: Location, across: bool) -> Self {
+    pub fn new(string: &str, start_location: Location, across: bool) -> Self {
         let mut end_location = start_location.clone();
         if across {
             end_location.1 += string.len() as isize - 1;
@@ -37,14 +37,14 @@ impl Word {
         }
     }
 
-    fn new_unplaced(string: &str) -> Self {
+    pub fn new_unplaced(string: &str) -> Self {
         Word {
             word_text: string.to_string(),
             placement: None,
         }
     }
 
-    fn get_location(&self) -> Option<(Location, Location, bool)> {
+    pub fn get_location(&self) -> Option<(Location, Location, bool)> {
         if let Some(word_placement) = &self.placement {
             Some((word_placement.start_location, word_placement.end_location, word_placement.across))
         } else {
@@ -52,11 +52,11 @@ impl Word {
         }
     }
 
-    fn remove_placement(&mut self) {
+    pub fn remove_placement(&mut self) {
         self.placement = None;
     }
 
-    fn extend_word(&mut self, character: char) -> Option<Location> {
+    pub fn extend_word(&mut self, character: char) -> Option<Location> {
         self.word_text.push(character);
         if let Some(word_placement) = &self.placement {
             let mut new_word_placement = word_placement.clone();
@@ -68,7 +68,7 @@ impl Word {
         }
     }
 
-    fn is_placed(&self) -> bool {
+    pub fn is_placed(&self) -> bool {
         self.get_location().is_some()
     }
 }

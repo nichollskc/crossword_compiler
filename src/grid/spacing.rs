@@ -4,9 +4,12 @@ use log::{info,warn,debug,error};
 use std::collections::HashMap;
 
 use super::CrosswordGrid;
+use super::Location;
+
+use super::Cell;
 
 impl CrosswordGrid {
-    fn expand_to_fit_cell(&mut self, location: Location) {
+    pub fn expand_to_fit_cell(&mut self, location: Location) {
         while location.0 < self.top_left_cell_index.0 {
             self.add_empty_row(self.top_left_cell_index.0 - 1);
         }

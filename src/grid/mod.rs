@@ -3,15 +3,15 @@ use std::cmp;
 use log::{info,warn,debug,error};
 use std::collections::HashMap;
 
-mod builder;
+pub mod builder;
 mod word;
 mod cell;
 mod add_word;
 mod spacing;
 mod properties;
 
-use ::word::Word;
-use crate::grid::cell::Cell;
+use word::Word;
+use cell::Cell;
 
 #[derive(Clone,Copy,Debug,Eq,Hash)]
 pub struct Location(pub isize, pub isize);
@@ -132,6 +132,16 @@ impl CrosswordGrid {
         let word_id = self.find_lowest_unused_word_id();
         self.word_map.insert(word_id, word);
         word_id
+    }
+
+    pub fn remove_word(&mut self, word_id: usize) {
+        self.word_map.remove(&word_id);
+        for (_location, cell) in self.cell_map.iter_mut() {
+            cell.remove_word(word_id);
+        }
+        if let Some(word) = self.word_map.get_mut(&word_id) {
+            word.remove_placement();
+        }
     }
 }
 
