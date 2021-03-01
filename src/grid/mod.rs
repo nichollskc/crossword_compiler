@@ -5,13 +5,17 @@ use std::collections::HashMap;
 mod builder;
 mod word;
 mod cell;
+
 mod add_word;
+mod random;
 mod spacing;
 mod properties;
 
 use word::Word;
 use cell::Cell;
 pub use builder::CrosswordGridBuilder;
+
+static VALIDCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 #[derive(Clone,Copy,Debug,Eq,Hash)]
 pub struct Location(pub isize, pub isize);

@@ -68,4 +68,12 @@ impl Word {
     pub fn is_placed(&self) -> bool {
         self.get_location().is_some()
     }
+
+    pub fn len(&self) -> usize {
+        self.word_text.len()
+    }
+
+    pub fn get_char_at_index(&self, index: usize) -> char {
+        self.word_text.chars().nth(index).unwrap()
+    }
 }
