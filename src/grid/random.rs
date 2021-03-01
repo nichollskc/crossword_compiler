@@ -209,9 +209,21 @@ mod tests {
         grid.add_unplaced_word("ABACUS");
         grid.add_unplaced_word("LOOP");
         grid.add_unplaced_word("BEE");
-        let mut num_successes = 0;
+        assert_eq!(count_successful_attempts(&grid), 5);
 
-        for attempt in PlacementAttemptIterator::new(&grid) {
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
+        grid.add_unplaced_word("PROBONO");
+        grid.add_unplaced_word("PASTURE");
+        grid.add_unplaced_word("VETO");
+        grid.add_unplaced_word("EROS");
+        // Note that whenever a valid word placement crosses multiple open cells, you will get a
+        // success starting from each of the open cells
+        assert_eq!(count_successful_attempts(&grid), 2 + 5 + 3 + 5);
+    }
+
+    fn count_successful_attempts(grid: &CrosswordGrid) -> usize {
+        let mut num_successes = 0;
+        for attempt in PlacementAttemptIterator::new(grid) {
             info!("Trying attempt {:?}", attempt);
             let mut grid_clone = grid.clone();
             let success = grid_clone.try_place_word_in_cell(attempt.location,
@@ -226,6 +238,6 @@ mod tests {
                 assert_eq!(grid_clone.to_string(), grid.to_string());
             }
         }
-        assert_eq!(num_successes, 5);
+        num_successes
     }
 }
