@@ -75,17 +75,19 @@ impl CrosswordGrid {
     }
 
     pub fn try_place_word_in_cell(&mut self,
-                              location: Location,
-                              word_id: usize,
-                              index_in_word: usize,
-                              across: bool) -> bool {
-        debug!("Trying to add word");
+                                  location: Location,
+                                  word_id: usize,
+                                  index_in_word: usize,
+                                  across: bool) -> bool {
         self.fit_to_size();
         self.fill_black_cells();
 
         let mut success = true;
         let mut start_location = location;
         let word = self.word_map.get(&word_id).unwrap().clone();
+        info!("Attempting to add word to location: {:?} across: {} index: {} word: {:?}",
+               location, across, index_in_word, word);
+        assert!(!word.is_placed());
         if self.cell_is_open(location, across) {
             let cells_before_this = - (index_in_word as isize);
             let cells_after_this = (word.word_text.len() as isize) - (index_in_word as isize);
@@ -113,10 +115,17 @@ impl CrosswordGrid {
                     cell.remove_word(word_id);
                 }
             }
+        } else {
+            success = false;
         }
+
         if success {
             self.word_map.insert(word_id, Word::new(&word.word_text, start_location, across));
+        } else {
+            assert!(!word.is_placed());
         }
+        let word = self.word_map.get(&word_id).unwrap().clone();
+        debug!("After possibly adding {:?}", word);
         self.fit_to_size();
         success
     }
@@ -193,29 +202,36 @@ mod tests {
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         grid.fit_to_size();
         grid.fill_black_cells();
+        grid.check_valid();
 
         let arrival_word_id = grid.add_unplaced_word("ARRIVAL");
         let bear_word_id = grid.add_unplaced_word("BEARER");
         let innards_word_id = grid.add_unplaced_word("INNARDS");
         let cup_word_id = grid.add_unplaced_word("CUP");
         let cap_word_id = grid.add_unplaced_word("CAP");
+        grid.check_valid();
         debug!("{:#?}", grid);
 
         assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, false));
+        grid.check_valid();
         assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, false));
+        grid.check_valid();
         assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, false));
+        grid.check_valid();
 
         let before_failure = grid.to_string();
-        assert!(!grid.try_place_word_in_cell(Location(0, 3), bear_word_id, 1, false));
+        assert!(!grid.try_place_word_in_cell(Location(0, 3), innards_word_id, 1, false));
+        grid.check_valid();
         assert_eq!(before_failure, grid.to_string());
 
         assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
+        grid.check_valid();
         assert_eq!(before_failure, grid.to_string());
         info!("{}", grid.to_string());
 
         debug!("{:#?}", grid);
-        debug!("TESTING");
         assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
+        grid.check_valid();
 
         let mut from_file = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
         from_file.fit_to_size();

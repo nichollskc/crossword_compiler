@@ -72,8 +72,6 @@ impl CrosswordGrid {
     }
 
     pub fn to_string(&self) -> String {
-        self.check_valid();
-
         let mut string: String = String::from("");
         let mut row = self.top_left_cell_index.0 + 1;
         let mut col = self.top_left_cell_index.1 + 1;
@@ -119,7 +117,9 @@ impl CrosswordGrid {
         }
 
         let graph = self.to_graph();
-        info!("{:#?}", graph);
+        debug!("{:#?}", graph);
+        debug!("{:#?}", self.word_map);
+        debug!("Checking grid connected {}", self.to_string());
         assert!(graph.is_connected());
     }
 

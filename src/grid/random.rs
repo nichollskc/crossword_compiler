@@ -7,7 +7,7 @@ use super::Location;
 use super::Word;
 use super::VALIDCHARS;
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 struct PlacementAttempt {
     word_id: usize,
     index_in_word: usize,
@@ -83,10 +83,10 @@ impl PlacementAttemptIterator {
     fn move_to_next_word(&mut self) -> bool {
         let mut keep_going = true;
         if let Some((word_id, word)) = self.words.pop() {
-            self.get_all_locations_current();
             self.current_word = word;
             self.current_word_id = word_id;
             self.current_index_in_word = 0;
+            self.get_all_locations_current();
             keep_going = true;
         } else {
             keep_going = false;
@@ -132,7 +132,7 @@ impl Iterator for PlacementAttemptIterator {
         while self.current_attempt.is_none() && keep_going {
             keep_going = self.move_to_next_location();
         }
-        
+
         self.current_attempt.clone()
     }
 }
@@ -155,5 +155,76 @@ impl CrosswordGrid {
         }
 
         success
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::CrosswordGridBuilder;
+
+    #[test]
+    fn test_simple_iterator() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        let mut attempts_expected = 0;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+
+        grid.add_unplaced_word("MOP");
+        attempts_expected += 1;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+
+        grid.add_unplaced_word("LOOP");
+        attempts_expected += 2;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+
+        grid.add_unplaced_word("HARICOT");
+        attempts_expected += 3;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+
+        grid.add_unplaced_word("LOLLIPOP");
+        attempts_expected += 3 + 2;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+
+        grid.add_unplaced_word("ABACUS");
+        attempts_expected += 4;
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), attempts_expected);
+    }
+
+    #[test]
+    fn test_iterator() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.add_unplaced_word("ABACUS");
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), 9*2 + 1);
+        grid.add_unplaced_word("LOOP");
+        assert_eq!(PlacementAttemptIterator::new(&grid).count(), 9*2 + 1 + 4*2 + 1);
+    }
+
+    #[test]
+    fn test_use_attempts() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+        grid.add_unplaced_word("ABACUS");
+        grid.add_unplaced_word("LOOP");
+        grid.add_unplaced_word("BEE");
+        let mut num_successes = 0;
+
+        for attempt in PlacementAttemptIterator::new(&grid) {
+            info!("Trying attempt {:?}", attempt);
+            let mut grid_clone = grid.clone();
+            let success = grid_clone.try_place_word_in_cell(attempt.location,
+                                                            attempt.word_id,
+                                                            attempt.index_in_word,
+                                                            attempt.across);
+            info!("Success for attempt {:?}: {}", attempt, success);
+            if success {
+                info!("Resulting grid\n{}", grid_clone.to_string());
+                num_successes += 1;
+            } else {
+                assert_eq!(grid_clone.to_string(), grid.to_string());
+            }
+        }
+        assert_eq!(num_successes, 5);
     }
 }
