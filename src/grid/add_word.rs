@@ -105,15 +105,27 @@ impl CrosswordGrid {
                location, across, index_in_word, word);
         assert!(!word.is_placed());
         if self.cell_is_open(location, across) {
-            let cells_before_this = - (index_in_word as isize);
-            let cells_after_this = (word.word_text.len() as isize) - (index_in_word as isize);
-            start_location = location.relative_location_directed(cells_before_this, across);
-            let end_location: Location = location.relative_location_directed(cells_after_this, across);
-            self.expand_to_fit_cell(start_location);
-            self.expand_to_fit_cell(end_location);
+            let cells_before_root = - (index_in_word as isize);
+            let cells_after_root = (word.word_text.len() as isize) - (index_in_word as isize + 1);
+            start_location = location.relative_location_directed(cells_before_root, across);
+            let end_location: Location = location.relative_location_directed(cells_after_root, across);
+            self.expand_to_fit_cell(start_location.relative_location_directed(-1, across));
+            self.expand_to_fit_cell(end_location.relative_location_directed(1, across));
 
             let mut updated_locations: Vec<Location> = vec![];
             let mut adjacent_words: HashSet<usize> = HashSet::new();
+
+            let before_start = start_location.relative_location_directed(-1, across);
+            success = !self.cell_map.get(&before_start).unwrap().contains_letter();
+            if !success {
+                debug!("Cell before word not empty, failure! {:?}", before_start);
+            } else {
+                let after_end = end_location.relative_location_directed(1, across);
+                success = !self.cell_map.get(&after_end).unwrap().contains_letter();
+                if !success {
+                    debug!("Cell after word not empty, failure! {:?}", after_end);
+                }
+            }
 
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
@@ -126,6 +138,7 @@ impl CrosswordGrid {
                                                                           -1,
                                                                           across) {
                         success = adjacent_words.insert(neighbour_id);
+                        debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
                     }
                 }
                 if success {
@@ -133,6 +146,7 @@ impl CrosswordGrid {
                                                                           1,
                                                                           across) {
                         success = adjacent_words.insert(neighbour_id);
+                        debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
                     }
                 }
 
