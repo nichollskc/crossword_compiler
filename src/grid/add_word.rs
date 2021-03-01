@@ -1,4 +1,5 @@
 use log::{info,warn,debug,error};
+use std::collections::HashSet;
 
 use super::CrosswordGrid;
 use super::Location;
@@ -28,6 +29,21 @@ impl CrosswordGrid {
                     }
                 }
             }
+        }
+    }
+
+    /// Check if the neighbouring cell has an across word (or down if across=false)
+    /// I.e. look for the cell parallel to this one in the direction indicated
+    ///     (e.g. move of (-1, 0) - the cell above if we are thinking of adding an across word
+    ///           corresponds to move_by=-1, across=true)
+    /// and check if it has an across word id (or down if across=false)
+    fn get_adjacent_word_id(&self, location: &Location, move_by: isize, across: bool) -> Option<usize> {
+        let neighbour_location = location.relative_location_directed(move_by, !across);
+        let cell = self.cell_map.get(&neighbour_location).unwrap();
+        if across {
+            cell.get_across_word_id()
+        } else {
+            cell.get_down_word_id()
         }
     }
 
@@ -97,11 +113,31 @@ impl CrosswordGrid {
             self.expand_to_fit_cell(end_location);
 
             let mut updated_locations: Vec<Location> = vec![];
+            let mut adjacent_words: HashSet<usize> = HashSet::new();
 
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
                 if success {
                     debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
+                    // (1) Check we don't border a parallel word with more than 1 cell
+                    // Fail if we are adjacent to a word we have already found ourselves
+                    // adjacent to - keep track of which we've already visited using HashSet
+                    if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
+                                                                          -1,
+                                                                          across) {
+                        success = adjacent_words.insert(neighbour_id);
+                    }
+                }
+                if success {
+                    if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
+                                                                          1,
+                                                                          across) {
+                        success = adjacent_words.insert(neighbour_id);
+                    }
+                }
+
+                // (2) Check cell empty or matches letter
+                if success {
                     let cell = self.cell_map.get_mut(&working_location).unwrap();
                     success = cell.add_word(word_id, letter, across);
                     updated_locations.push(working_location);
@@ -109,6 +145,7 @@ impl CrosswordGrid {
                 }
             }
 
+            // If we have failed, undo anything we did i.e. remove word from cells
             if !success {
                 for updated_location in updated_locations {
                     let cell = self.cell_map.get_mut(&updated_location).unwrap();
