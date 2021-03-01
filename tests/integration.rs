@@ -13,7 +13,7 @@ fn read_from_file() {
 #[test]
 #[should_panic]
 fn check_disconnected() {
-    let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/disconnected.txt");
+    crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/disconnected.txt");
 }
 
 #[test]
