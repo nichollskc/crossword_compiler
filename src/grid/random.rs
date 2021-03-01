@@ -38,16 +38,17 @@ impl PlacementAttemptIterator {
             // All these cells should belong to precisely one word
             let letter = cell.to_char();
             let across = match cell.get_across_word_id() {
-                Some(_w) => true,
-                None => false,
+                Some(_w) => false,
+                None => true,
             };
             letter_to_locations.get_mut(&letter).unwrap().push((*location, across));
         }
 
-        let copied_words = grid.word_map.iter().map(|(key, value)| {
-            (*key, value.clone())
-        }).collect();
- 
+        let copied_words = grid.word_map.iter()
+            .map(|(key, value)| (*key, value.clone()))
+            .filter(|(key, value)| !value.is_placed())
+            .collect();
+
         PlacementAttemptIterator {
              words: copied_words,
              current_word_id: 0,
