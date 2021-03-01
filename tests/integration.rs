@@ -30,3 +30,19 @@ fn single_word() {
     assert_eq!(grid.count_filled_cells(), 5);
     grid.check_valid();
 }
+
+#[test]
+fn add_random_words() {
+    let mut grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
+    grid.add_unplaced_word("PROBONO");
+    grid.add_unplaced_word("PASTURE");
+    grid.add_unplaced_word("VETO");
+    grid.add_unplaced_word("EROS");
+
+    let mut success = true;
+    while success {
+        success = grid.place_random_word();
+    }
+    println!("{}", grid.to_string());
+    assert_eq!(grid.count_placed_words(), 7);
+}
