@@ -1,6 +1,9 @@
 use log::{info,warn,debug,error};
 use std::collections::HashMap;
 
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+
 use super::CrosswordGrid;
 use super::Location;
 
@@ -27,6 +30,7 @@ struct PlacementAttemptIterator {
 
 impl PlacementAttemptIterator {
     fn new(grid: &CrosswordGrid) -> Self {
+        let mut rng = thread_rng();
         let empty_word = Word::new_unplaced("");
 
         let mut letter_to_locations: HashMap<char, Vec<(Location, bool)>> = HashMap::new();
@@ -44,10 +48,15 @@ impl PlacementAttemptIterator {
             letter_to_locations.get_mut(&letter).unwrap().push((*location, across));
         }
 
-        let copied_words = grid.word_map.iter()
+        for c in VALIDCHARS.chars() {
+            letter_to_locations.get_mut(&c).unwrap().shuffle(&mut rng);
+        }
+
+        let mut copied_words: Vec<(usize, Word)> = grid.word_map.iter()
             .map(|(key, value)| (*key, value.clone()))
             .filter(|(key, value)| !value.is_placed())
             .collect();
+        copied_words.shuffle(&mut rng);
 
         PlacementAttemptIterator {
              words: copied_words,
