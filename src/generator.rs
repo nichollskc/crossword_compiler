@@ -1,4 +1,5 @@
 use std::collections::{HashMap,HashSet};
+use std::fs;
 use std::cmp;
 use log::{info,warn,debug,error};
 
@@ -43,6 +44,12 @@ pub struct CrosswordGenerator {
 }
 
 impl CrosswordGenerator {
+    pub fn new_from_file(filename: &str) -> Self {
+        let contents = fs::read_to_string(filename).unwrap();
+        let words: Vec<&str> = contents.split('\n').collect();
+        CrosswordGenerator::new_from_singletons(words)
+    }
+
     pub fn new_from_singletons(words: Vec<&str>) -> Self {
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
         let mut word_map: HashMap<usize, &str> = HashMap::new();

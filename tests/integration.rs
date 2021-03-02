@@ -54,3 +54,10 @@ fn test_generator() {
     let mut generator = crossword::generator::CrosswordGenerator::new_from_singletons(words);
     generator.generate();
 }
+
+#[test]
+fn test_generator_fifteen_squared() {
+    crossword::logging::init_logger(true);
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    generator.generate();
+}
