@@ -54,6 +54,16 @@ impl CrosswordGrid {
         builder.from_string(word)
     }
 
+    pub fn new_single_placed(word: &str, placed_id: usize, all_words: HashMap<usize, &str>) -> Self {
+        let mut singleton = CrosswordGrid::new_single_word(word);
+        for (other_word_id, other_word) in all_words.iter() {
+            if *other_word_id != placed_id {
+                singleton.add_unplaced_word(&other_word);
+            }
+        }
+        singleton
+    }
+
     pub fn to_graph(&self) -> Graph {
         let mut edges: Vec<(usize, usize)> = vec![];
         for cell in self.cell_map.values() {

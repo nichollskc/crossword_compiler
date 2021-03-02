@@ -46,3 +46,11 @@ fn add_random_words() {
     println!("{}", grid.to_string());
     assert_eq!(grid.count_placed_words(), 7);
 }
+
+#[test]
+fn test_generator() {
+    crossword::logging::init_logger(true);
+    let words = vec!["BEARER", "ABOVE", "HERE", "INVALUABLE", "BANANA", "ROYAL", "AROUND", "ROE"];
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_singletons(words);
+    generator.generate();
+}
