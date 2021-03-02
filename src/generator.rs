@@ -106,7 +106,7 @@ impl CrosswordGenerator {
             }
         }
 
-        unique_children.sort_by(|a, b| a.score.cmp(&b.score));
+        unique_children.sort_by(|a, b| b.score.cmp(&a.score));
 
         for gridAttempt in unique_children.drain(..).take(self.num_per_generation) {
             info!("Grid has score {}:\n{}", gridAttempt.score, gridAttempt.grid.to_string());
