@@ -1,4 +1,5 @@
 use std::collections::{HashMap,HashSet};
+use std::cmp;
 use log::{info,warn,debug,error};
 
 use crate::grid::CrosswordGrid;
@@ -12,9 +13,22 @@ struct CrosswordGridAttempt {
 impl CrosswordGridAttempt {
     fn new(grid: CrosswordGrid) -> Self {
         CrosswordGridAttempt {
-            score: grid.count_placed_words() as isize,
+            score: CrosswordGridAttempt::score_grid(&grid),
             grid,
         }
+    }
+
+    fn score_grid(grid: &CrosswordGrid) -> isize {
+        let (nrows, ncols) = grid.get_grid_dimensions();
+        let total_cells = nrows * ncols;
+        let nonsquare_penalty: usize = cmp::max(nrows, ncols).pow(2) - total_cells;
+        let proportion_filled: f64 = (grid.count_filled_cells() as f64) / (total_cells as f64);
+        let num_placed: f64 = grid.count_placed_words() as f64;
+        let num_cycles: f64 = grid.to_graph().count_cycles() as f64;
+        info!("Num cycles: {}", num_cycles);
+
+        let float_score: f64 = num_placed * proportion_filled * 10.0 + (nonsquare_penalty as f64) + 200.0 * num_cycles;
+        (float_score * 100.0) as isize
     }
 }
 
