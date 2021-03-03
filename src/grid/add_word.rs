@@ -117,13 +117,15 @@ impl CrosswordGrid {
         (success, start_location)
     }
 
-    fn try_to_place_letter(&mut self,
-                           letter: char,
-                           word_id: usize,
-                           working_location: &Location,
-                           across: bool,
-                           adjacent_words: &mut HashSet<usize>) -> bool {
-        let mut success = true;
+    fn try_place_letter(&mut self,
+                        letter: char,
+                        word_id: usize,
+                        working_location: &Location,
+                        across: bool,
+                        adjacent_words: &mut HashSet<usize>) -> bool {
+        let cell = self.cell_map.get_mut(&working_location).unwrap();
+        let mut success = cell.add_word(word_id, letter, across);
+
         if success {
             debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
             // (1) Check we don't border a parallel word with more than 1 cell
@@ -145,11 +147,6 @@ impl CrosswordGrid {
             }
         }
 
-        // (2) Check cell empty or matches letter
-        if success {
-            let cell = self.cell_map.get_mut(&working_location).unwrap();
-            success = cell.add_word(word_id, letter, across);
-        }
         success
     }
 
@@ -178,12 +175,10 @@ impl CrosswordGrid {
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
                 if success {
-                    success = self.try_to_place_letter(letter, word_id, &working_location, across, &mut adjacent_words);
+                    success = self.try_place_letter(letter, word_id, &working_location, across, &mut adjacent_words);
 
-                    if success {
-                        updated_locations.push(working_location);
-                        working_location = working_location.relative_location_directed(1, across);
-                    }
+                    updated_locations.push(working_location);
+                    working_location = working_location.relative_location_directed(1, across);
                 }
             }
 
@@ -316,7 +311,11 @@ mod tests {
         from_file.fit_to_size();
         debug!("{}", grid.to_string());
         assert_eq!(from_file.to_string(), grid.to_string());
+    }
 
+    #[test]
+    fn add_word_to_grid_adjacent() {
+        crate::logging::init_logger(true);
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/bear_button.txt");
         let button_word_id = grid.add_unplaced_word("BUTTON");
         grid.check_valid();
