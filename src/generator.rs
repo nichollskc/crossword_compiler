@@ -48,8 +48,11 @@ impl CrosswordGridAttempt {
         let proportion_filled: f64 = (grid.count_filled_cells() as f64) / (total_cells as f64);
         let num_placed: f64 = grid.count_placed_words() as f64;
         let num_cycles: f64 = grid.to_graph().count_cycles() as f64;
+        let num_intersections: f64 = grid.count_intersections() as f64;
+        let double_counted_filled: f64 = num_placed + num_intersections;
+        let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
 
-        let float_score: f64 = num_placed * 100.0 + proportion_filled * 50.0 - (nonsquare_penalty as f64) * 5.0 + 1000.0 * num_cycles;
+        let float_score: f64 = num_placed * 100.0 + proportion_filled * 20.0 + proportion_intersections * 100.0 - (nonsquare_penalty as f64) * 5.0 + 1000.0 * num_cycles;
         let score = (float_score * 100.0) as isize;
         info!("Score: {}, Num cycles: {}, Placed: {}, Prop filed: {}\n{}",
               score, num_cycles, num_placed, proportion_filled, grid.to_string());
@@ -99,6 +102,7 @@ impl CrosswordGeneratorSettings {
 pub struct CrosswordGenerator {
     current_generation: Vec<CrosswordGridAttempt>,
     next_generation: Vec<CrosswordGridAttempt>,
+    round: usize,
     pub settings: CrosswordGeneratorSettings,
 }
 
@@ -126,6 +130,7 @@ impl CrosswordGenerator {
         CrosswordGenerator {
             current_generation: singletons,
             next_generation: vec![],
+            round: 0,
             settings: CrosswordGeneratorSettings::default(),
         }
     }
@@ -204,19 +209,18 @@ impl CrosswordGenerator {
     }
 
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
-        let mut round: usize = 0;
         let mut best_score_ever: isize = 0;
         let mut best_score: isize = self.get_current_best_score();
-        info!("Round {}. Current best score is {:?}", round, best_score);
+        info!("Round {}. Current best score is {:?}", self.round, best_score);
 
-        while best_score > best_score_ever && round < self.settings.max_rounds {
+        while best_score > best_score_ever && self.round < self.settings.max_rounds {
             best_score_ever = best_score;
 
             self.next_generation();
             best_score = self.get_current_best_score();
-            info!("Round {}. Current best score is {:?}", round, best_score);
+            info!("Round {}. Current best score is {:?}", self.round, best_score);
 
-            round += 1;
+            self.round += 1;
         }
         if best_score <= best_score_ever {
             info!("Stopped iterating since we stopped increasing our score");
