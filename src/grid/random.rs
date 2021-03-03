@@ -166,6 +166,19 @@ impl CrosswordGrid {
 
         success
     }
+
+    pub fn remove_random_leaves(&mut self, num_leaves: usize) {
+        let mut leaves = self.to_graph().find_leaves();
+        let mut rng = thread_rng();
+        leaves.shuffle(&mut rng);
+
+        let mut count: usize = 0;
+        while count < num_leaves {
+            if let Some(word_id) = leaves.pop() {
+                self.remove_word(word_id);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

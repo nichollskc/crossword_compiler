@@ -155,6 +155,17 @@ impl Graph {
         self.count_edges() + 1 - self.num_nodes
     }
 
+    pub fn find_leaves(&self) -> Vec<usize> {
+        let mut leaves = vec![];
+        for node_id in self.node_map.keys() {
+            // A leaf is a node which has only one edge
+            if self.get_node(*node_id).unwrap().connected_nodes.len() <= 1 {
+                leaves.push(*node_id);
+            }
+        }
+        leaves
+    }
+
     fn _get_edge_list(&self, node_id: usize) -> Vec<(usize, usize)> {
         match self.get_node(node_id) {
             Some(node) => {
