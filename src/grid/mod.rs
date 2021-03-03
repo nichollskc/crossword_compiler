@@ -58,7 +58,7 @@ impl CrosswordGrid {
         let mut singleton = CrosswordGrid::new_single_word(word);
         for (other_word_id, other_word) in all_words.iter() {
             if *other_word_id != placed_id {
-                singleton.add_unplaced_word(&other_word);
+                singleton.add_unplaced_word_at_id(&other_word, *other_word_id);
             }
         }
         singleton
@@ -141,10 +141,14 @@ impl CrosswordGrid {
         word_id
     }
 
-    pub fn add_unplaced_word(&mut self, word_text: &str) -> usize {
+    pub fn add_unplaced_word_at_id(&mut self, word_text: &str, word_id: usize) {
         let word = Word::new_unplaced(word_text);
-        let word_id = self.find_lowest_unused_word_id();
         self.word_map.insert(word_id, word);
+    }
+
+    pub fn add_unplaced_word(&mut self, word_text: &str) -> usize {
+        let word_id = self.find_lowest_unused_word_id();
+        self.add_unplaced_word_at_id(word_text, word_id);
         word_id
     }
 

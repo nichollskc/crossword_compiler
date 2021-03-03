@@ -41,7 +41,7 @@ fn add_random_words() {
 
     let mut success = true;
     while success {
-        success = grid.place_random_word();
+        success = grid.place_random_word(13);
     }
     println!("{}", grid.to_string());
     assert_eq!(grid.count_placed_words(), 7);

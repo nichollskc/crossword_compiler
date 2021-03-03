@@ -78,16 +78,16 @@ impl CrosswordGenerator {
     pub fn new_from_singletons(words: Vec<&str>) -> Self {
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
         let mut word_map: HashMap<usize, &str> = HashMap::new();
-        let mut i = 0;
-        for word in words.iter() {
-            word_map.insert(i, word);
-            i += 1;
+        for (word_id, word) in words.iter().enumerate() {
+            word_map.insert(word_id, word);
         }
 
-        for (word_id, word) in word_map.iter() {
-            let singleton = CrosswordGrid::new_single_placed(word, *word_id, word_map.clone());
+        for (word_id, word) in words.iter().enumerate() {
+            let singleton = CrosswordGrid::new_single_placed(word, word_id, word_map.clone());
             singletons.push(CrosswordGridAttempt::new(singleton));
         }
+
+        info!("First of first generation is {}", singletons[0].grid.to_string());
 
         CrosswordGenerator {
             current_generation: singletons,
@@ -111,12 +111,13 @@ impl CrosswordGenerator {
         let mut moves = 0;
         let mut success = true;
         while success && moves < self.moves_between_scores {
-            match self.choose_random_move_type(seed + moves as u64) {
+            let extended_seed: u64 = seed + moves as u64;
+            match self.choose_random_move_type(extended_seed) {
                 MoveType::PlaceWord => {
-                    success = copied.place_random_word();
+                    success = copied.place_random_word(extended_seed);
                 },
                 MoveType::PruneLeaves => {
-                    copied.remove_random_leaves(2);
+                    copied.remove_random_leaves(2, extended_seed);
                 },
             }
             moves += 1;
