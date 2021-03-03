@@ -59,5 +59,23 @@ fn test_generator() {
 fn test_generator_fifteen_squared() {
     crossword::logging::init_logger(true);
     let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
-    generator.generate();
+    generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
+    let results = generator.generate();
+    for grid in results.iter() {
+        println!("{}", grid.to_string());
+    }
+
+    let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    generator2.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
+    let results2 = generator2.generate();
+
+    for grid in results2.iter() {
+        println!("{}", grid.to_string());
+    }
+
+
+    for i in 0..5 {
+        assert_eq!(results[i].to_string(), results2[i].to_string(),
+            "Expected grids from each identical generators to look identical. Failed for index {}", i);
+    }
 }

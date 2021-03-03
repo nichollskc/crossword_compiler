@@ -57,15 +57,48 @@ impl CrosswordGridAttempt {
 }
 
 #[derive(Debug)]
-pub struct CrosswordGenerator {
-    current_generation: Vec<CrosswordGridAttempt>,
-    next_generation: Vec<CrosswordGridAttempt>,
+pub struct CrosswordGeneratorSettings {
+    seed: u64,
     moves_between_scores: usize,
     num_children: usize,
     num_per_generation: usize,
     max_rounds: usize,
-    seed: u64,
     move_types: Vec<MoveType>,
+}
+
+impl CrosswordGeneratorSettings {
+    pub fn default() -> Self {
+        CrosswordGeneratorSettings {
+            moves_between_scores: 4,
+            num_per_generation: 20,
+            num_children: 10,
+            max_rounds: 20,
+            seed: 13,
+            move_types: generate_move_types_vec(10, 1),
+        }
+    }
+
+    pub fn new(seed: u64,
+           moves_between_scores: usize,
+           num_children: usize,
+           num_per_generation: usize,
+           max_rounds: usize) -> Self {
+        CrosswordGeneratorSettings {
+            moves_between_scores,
+            num_per_generation,
+            num_children,
+            max_rounds,
+            seed,
+            move_types: generate_move_types_vec(10, 1),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CrosswordGenerator {
+    current_generation: Vec<CrosswordGridAttempt>,
+    next_generation: Vec<CrosswordGridAttempt>,
+    pub settings: CrosswordGeneratorSettings,
 }
 
 impl CrosswordGenerator {
@@ -92,25 +125,20 @@ impl CrosswordGenerator {
         CrosswordGenerator {
             current_generation: singletons,
             next_generation: vec![],
-            moves_between_scores: 5,
-            num_per_generation: 20,
-            num_children: 10,
-            max_rounds: 3,
-            seed: 13,
-            move_types: generate_move_types_vec(10, 1),
+            settings: CrosswordGeneratorSettings::default(),
         }
     }
 
     fn choose_random_move_type(&self, seed: u64) -> MoveType {
-        let mut rng = StdRng::seed_from_u64(self.seed + seed);
-        *self.move_types.choose(&mut rng).unwrap()
+        let mut rng = StdRng::seed_from_u64(self.settings.seed + seed);
+        *self.settings.move_types.choose(&mut rng).unwrap()
     }
 
     fn produce_child(&self, gridAttempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
         let mut copied = gridAttempt.grid.clone();
         let mut moves = 0;
         let mut success = true;
-        while success && moves < self.moves_between_scores {
+        while success && moves < self.settings.moves_between_scores {
             let extended_seed: u64 = seed + moves as u64;
             let random_move = self.choose_random_move_type(extended_seed);
             debug!("Picked move {:?}", random_move);
@@ -130,8 +158,8 @@ impl CrosswordGenerator {
     fn next_generation(&mut self) {
         for gridAttempt in self.current_generation.iter() {
             debug!("Considering extensions of grid:\n{}", gridAttempt.grid.to_string());
-            let seed = (gridAttempt.score as u64);
-            for child_index in 0..self.num_children {
+            let seed = gridAttempt.score as u64;
+            for child_index in 0..self.settings.num_children {
                 let child = self.produce_child(&gridAttempt, seed + child_index as u64);
                 self.next_generation.push(child);
             }
@@ -153,7 +181,7 @@ impl CrosswordGenerator {
 
         unique_children.sort_by(|a, b| b.score.cmp(&a.score));
 
-        for gridAttempt in unique_children.drain(..).take(self.num_per_generation) {
+        for gridAttempt in unique_children.drain(..).take(self.settings.num_per_generation) {
             debug!("Grid has score {}:\n{}", gridAttempt.score, gridAttempt.grid.to_string());
             self.current_generation.push(gridAttempt);
         }
@@ -180,7 +208,7 @@ impl CrosswordGenerator {
         let mut best_score: isize = self.get_current_best_score();
         info!("Round {}. Current best score is {:?}", round, best_score);
 
-        while best_score > best_score_ever && round < self.max_rounds {
+        while best_score > best_score_ever && round < self.settings.max_rounds {
             best_score_ever = best_score;
 
             self.next_generation();
@@ -193,7 +221,7 @@ impl CrosswordGenerator {
             info!("Stopped iterating since we stopped increasing our score");
         }
 
-        self.output_best(self.num_per_generation)
+        self.output_best(self.settings.num_per_generation)
     }
 }
 
