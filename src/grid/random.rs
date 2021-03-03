@@ -178,12 +178,12 @@ impl CrosswordGrid {
         let mut rng = StdRng::seed_from_u64(seed);
         leaves.shuffle(&mut rng);
 
-        info!("Attempting to remove {} leaves", num_leaves);
+        debug!("Attempting to remove {} leaves", num_leaves);
 
         let mut count: usize = 0;
         while count < num_leaves && self.count_placed_words() > 1 {
             if let Some(word_id) = leaves.pop() {
-                info!("Removing leaf word {}", word_id);
+                debug!("Removing leaf word {}", word_id);
                 self.remove_word(word_id);
             }
             count += 1;

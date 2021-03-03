@@ -113,7 +113,7 @@ impl CrosswordGenerator {
         while success && moves < self.moves_between_scores {
             let extended_seed: u64 = seed + moves as u64;
             let random_move = self.choose_random_move_type(extended_seed);
-            info!("Picked move {:?}", random_move);
+            debug!("Picked move {:?}", random_move);
             match random_move {
                 MoveType::PlaceWord => {
                     success = copied.place_random_word(extended_seed);
@@ -154,7 +154,7 @@ impl CrosswordGenerator {
         unique_children.sort_by(|a, b| b.score.cmp(&a.score));
 
         for gridAttempt in unique_children.drain(..).take(self.num_per_generation) {
-            info!("Grid has score {}:\n{}", gridAttempt.score, gridAttempt.grid.to_string());
+            debug!("Grid has score {}:\n{}", gridAttempt.score, gridAttempt.grid.to_string());
             self.current_generation.push(gridAttempt);
         }
     }

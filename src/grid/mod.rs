@@ -72,7 +72,7 @@ impl CrosswordGrid {
                             cell.get_down_word_id().unwrap()));
             }
         }
-        info!("All intersections found {:#?}", edges);
+        debug!("All intersections found {:#?}", edges);
         let mut graph = Graph::new_from_edges(edges);
 
         for (word_id, _word) in self.word_map.iter().filter(|(_id, w)| w.is_placed()) {
@@ -160,5 +160,6 @@ impl CrosswordGrid {
         if let Some(word) = self.word_map.get_mut(&word_id) {
             word.remove_placement();
         }
+        debug!("Now have {} words in grid", self.word_map.len());
     }
 }
