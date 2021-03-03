@@ -48,10 +48,12 @@ impl CrosswordGridAttempt {
         let proportion_filled: f64 = (grid.count_filled_cells() as f64) / (total_cells as f64);
         let num_placed: f64 = grid.count_placed_words() as f64;
         let num_cycles: f64 = grid.to_graph().count_cycles() as f64;
-        info!("Num cycles: {}", num_cycles);
 
-        let float_score: f64 = num_placed * proportion_filled * 10.0 + (nonsquare_penalty as f64) + 200.0 * num_cycles;
-        (float_score * 100.0) as isize
+        let float_score: f64 = num_placed * 100.0 + proportion_filled * 50.0 - (nonsquare_penalty as f64) * 5.0 + 1000.0 * num_cycles;
+        let score = (float_score * 100.0) as isize;
+        info!("Score: {}, Num cycles: {}, Placed: {}, Prop filed: {}\n{}",
+              score, num_cycles, num_placed, proportion_filled, grid.to_string());
+        score
     }
 }
 
