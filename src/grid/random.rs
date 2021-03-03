@@ -173,10 +173,11 @@ impl CrosswordGrid {
         leaves.shuffle(&mut rng);
 
         let mut count: usize = 0;
-        while count < num_leaves {
+        while count < num_leaves && self.count_placed_words() > 0 {
             if let Some(word_id) = leaves.pop() {
                 self.remove_word(word_id);
             }
+            count += 1;
         }
     }
 }

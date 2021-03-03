@@ -3,7 +3,30 @@ use std::fs;
 use std::cmp;
 use log::{info,warn,debug,error};
 
+use rand::seq::SliceRandom;
+use rand::prelude::*;
+use rand::{Rng,SeedableRng};
+use rand::rngs::StdRng;
+
 use crate::grid::CrosswordGrid;
+
+#[derive(Clone,Copy,Debug)]
+enum MoveType {
+    PlaceWord,
+    PruneLeaves,
+}
+
+fn generate_move_types_vec(place_word_weight: usize, prune_leaves_weight: usize) -> Vec<MoveType> {
+    let mut move_types = vec![];
+    for _ in 0..place_word_weight {
+        move_types.push(MoveType::PlaceWord);
+    }
+    for _ in 0..prune_leaves_weight {
+        move_types.push(MoveType::PruneLeaves);
+    }
+
+    move_types
+}
 
 #[derive(Debug)]
 struct CrosswordGridAttempt {
@@ -41,6 +64,8 @@ pub struct CrosswordGenerator {
     num_children: usize,
     num_per_generation: usize,
     max_rounds: usize,
+    seed: u64,
+    move_types: Vec<MoveType>,
 }
 
 impl CrosswordGenerator {
@@ -63,23 +88,37 @@ impl CrosswordGenerator {
             let singleton = CrosswordGrid::new_single_placed(word, *word_id, word_map.clone());
             singletons.push(CrosswordGridAttempt::new(singleton));
         }
-        
+
         CrosswordGenerator {
             current_generation: singletons,
             next_generation: vec![],
             moves_between_scores: 5,
             num_per_generation: 20,
             num_children: 10,
-            max_rounds: 20,
+            max_rounds: 3,
+            seed: 13,
+            move_types: generate_move_types_vec(5, 2),
         }
     }
 
-    fn produce_child(&self, gridAttempt: &CrosswordGridAttempt) -> CrosswordGridAttempt {
+    fn choose_random_move_type(&self, seed: u64) -> MoveType {
+        let mut rng = StdRng::seed_from_u64(self.seed + seed);
+        *self.move_types.choose(&mut rng).unwrap()
+    }
+
+    fn produce_child(&self, gridAttempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
         let mut copied = gridAttempt.grid.clone();
         let mut moves = 0;
         let mut success = true;
         while success && moves < self.moves_between_scores {
-            success = copied.place_random_word();
+            match self.choose_random_move_type(seed + moves as u64) {
+                MoveType::PlaceWord => {
+                    success = copied.place_random_word();
+                },
+                MoveType::PruneLeaves => {
+                    copied.remove_random_leaves(2);
+                },
+            }
             moves += 1;
         }
         CrosswordGridAttempt::new(copied)
@@ -88,11 +127,10 @@ impl CrosswordGenerator {
     fn next_generation(&mut self) {
         for gridAttempt in self.current_generation.iter() {
             debug!("Considering extensions of grid:\n{}", gridAttempt.grid.to_string());
-            let mut children = 0;
-            while children < self.num_children {
-                let child = self.produce_child(&gridAttempt);
+            let seed = (gridAttempt.score as u64);
+            for child_index in 0..self.num_children {
+                let child = self.produce_child(&gridAttempt, seed + child_index as u64);
                 self.next_generation.push(child);
-                children += 1;
             }
         }
 
