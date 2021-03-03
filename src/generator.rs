@@ -133,8 +133,8 @@ impl CrosswordGenerator {
         *self.settings.move_types.choose(&mut rng).unwrap()
     }
 
-    fn produce_child(&self, gridAttempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
-        let mut copied = gridAttempt.grid.clone();
+    fn produce_child(&self, grid_attempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
+        let mut copied = grid_attempt.grid.clone();
         let mut moves = 0;
         let mut success = true;
         while success && moves < self.settings.moves_between_scores {
@@ -155,11 +155,11 @@ impl CrosswordGenerator {
     }
 
     fn next_generation(&mut self) {
-        for gridAttempt in self.current_generation.iter() {
-            debug!("Considering extensions of grid:\n{}", gridAttempt.grid.to_string());
-            let seed = gridAttempt.score as u64;
+        for grid_attempt in self.current_generation.iter() {
+            debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
+            let seed = grid_attempt.score as u64;
             for child_index in 0..self.settings.num_children {
-                let child = self.produce_child(&gridAttempt, seed + child_index as u64);
+                let child = self.produce_child(&grid_attempt, seed + child_index as u64);
                 self.next_generation.push(child);
             }
         }
@@ -180,16 +180,16 @@ impl CrosswordGenerator {
 
         unique_children.sort_by(|a, b| b.score.cmp(&a.score));
 
-        for gridAttempt in unique_children.drain(..).take(self.settings.num_per_generation) {
-            debug!("Grid has score {}:\n{}", gridAttempt.score, gridAttempt.grid.to_string());
-            self.current_generation.push(gridAttempt);
+        for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
+            debug!("Grid has score {}:\n{}", grid_attempt.score, grid_attempt.grid.to_string());
+            self.current_generation.push(grid_attempt);
         }
     }
 
     fn output_best(&self, num_to_output: usize) -> Vec<CrosswordGrid> {
         let mut output: Vec<CrosswordGrid> = vec![];
-        for gridAttempt in self.current_generation.iter().take(num_to_output) {
-            output.push(gridAttempt.grid.clone());
+        for grid_attempt in self.current_generation.iter().take(num_to_output) {
+            output.push(grid_attempt.grid.clone());
         }
         output
     }

@@ -20,10 +20,6 @@ impl Node {
     fn add_edge(&mut self, neighbour_id: usize) {
         self.connected_nodes.insert(neighbour_id);
     }
-
-    fn remove_edge(&mut self, neighbour_id: usize) {
-        self.connected_nodes.remove(&neighbour_id);
-    }
 }
 
 #[derive(Debug)]

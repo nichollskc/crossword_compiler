@@ -1,4 +1,4 @@
-use log::{info,warn,debug,error};
+use log::{info,debug};
 use crossword;
 
 #[test]

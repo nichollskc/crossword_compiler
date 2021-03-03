@@ -56,7 +56,7 @@ impl PlacementAttemptIterator {
 
         let mut copied_words: Vec<(usize, Word)> = grid.word_map.iter()
             .map(|(key, value)| (*key, value.clone()))
-            .filter(|(key, value)| !value.is_placed())
+            .filter(|(_key, value)| !value.is_placed())
             .collect();
         // Determinstically shuffle the word list. The order is currently
         // arbitrary, so first sort by word_id and then shuffle using the seeded RNG
@@ -82,7 +82,7 @@ impl PlacementAttemptIterator {
     }
 
     fn move_to_next_index_in_word(&mut self) -> bool {
-        let mut keep_going = true;
+        let keep_going: bool;
         self.current_index_in_word += 1;
         if self.current_index_in_word < self.current_word.len() {
             // This is a valid index
@@ -96,7 +96,7 @@ impl PlacementAttemptIterator {
     }
 
     fn move_to_next_word(&mut self) -> bool {
-        let mut keep_going = true;
+        let keep_going: bool;
         if let Some((word_id, word)) = self.words.pop() {
             self.current_word = word;
             self.current_word_id = word_id;
@@ -111,7 +111,7 @@ impl PlacementAttemptIterator {
 
     fn move_to_next_location(&mut self) -> bool {
         let next_location = self.remaining_locations.pop();
-        let mut keep_going = true;
+        let keep_going: bool;
         if let Some((location, across)) = next_location {
             let attempt = PlacementAttempt {
                 word_id: self.current_word_id,

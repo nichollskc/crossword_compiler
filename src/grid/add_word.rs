@@ -95,7 +95,7 @@ impl CrosswordGrid {
                                          word: &Word,
                                          index_in_word: usize,
                                          across: bool) -> (bool, Location) {
-        let mut success = true;
+        let mut success: bool;
         let cells_before_root = - (index_in_word as isize);
         let cells_after_root = (word.word_text.len() as isize) - (index_in_word as isize + 1);
         let start_location = location.relative_location_directed(cells_before_root, across);
@@ -161,7 +161,7 @@ impl CrosswordGrid {
         self.fit_to_size();
         self.fill_black_cells();
 
-        let mut success = true;
+        let mut success: bool;
         let word = self.word_map.get(&word_id).unwrap().clone();
         info!("Attempting to add word to location: {:?} across: {} index: {} word: {:?}",
                location, across, index_in_word, word);
