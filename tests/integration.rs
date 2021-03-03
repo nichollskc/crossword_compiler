@@ -1,3 +1,4 @@
+use log::{info,warn,debug,error};
 use crossword;
 
 #[test]
@@ -62,7 +63,7 @@ fn test_generator_fifteen_squared() {
     generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
     let results = generator.generate();
     for grid in results.iter() {
-        println!("{}", grid.to_string());
+        debug!("{}", grid.to_string());
     }
 
     let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
@@ -70,12 +71,24 @@ fn test_generator_fifteen_squared() {
     let results2 = generator2.generate();
 
     for grid in results2.iter() {
-        println!("{}", grid.to_string());
+        debug!("{}", grid.to_string());
     }
 
 
     for i in 0..5 {
         assert_eq!(results[i].to_string(), results2[i].to_string(),
             "Expected grids from each identical generators to look identical. Failed for index {}", i);
+    }
+}
+
+#[test]
+fn test_generator_fifteen_squared_branching() {
+    crossword::logging::init_logger(true);
+    info!("Starting branching generator");
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 30, 2, 100, 1);
+    let results = generator.generate();
+    for grid in results.iter() {
+        debug!("{}", grid.to_string());
     }
 }

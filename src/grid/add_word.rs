@@ -288,5 +288,10 @@ mod tests {
         from_file.fit_to_size();
         debug!("{}", grid.to_string());
         assert_eq!(from_file.to_string(), grid.to_string());
+
+        let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/bear_button.txt");
+        let button_word_id = grid.add_unplaced_word("BUTTON");
+        grid.check_valid();
+        assert!(!grid.try_place_word_in_cell(Location(3, 5), button_word_id, 2, true));
     }
 }
