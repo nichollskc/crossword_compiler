@@ -1,4 +1,5 @@
 use log::{info,warn,debug,error};
+use std::fmt;
 
 use super::Location;
 
@@ -11,11 +12,17 @@ enum FillStatus {
     Black,
 }
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy)]
 struct FilledCell {
     letter: char,
     across_word_id: Option<usize>,
     down_word_id: Option<usize>,
+}
+
+impl fmt::Debug for FilledCell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}, across_id: {:?}, down_id: {:?}", self.letter, self.across_word_id, self.down_word_id)
+    }
 }
 
 impl FilledCell {
@@ -28,9 +35,15 @@ impl FilledCell {
     }
 }
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy)]
 pub(super) struct Cell {
     fill_status: FillStatus,
+}
+
+impl fmt::Debug for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.fill_status)
+    }
 }
 
 impl Cell {

@@ -1,6 +1,7 @@
 use crate::graph::Graph;
 use log::{info,warn,debug,error};
 use std::collections::HashMap;
+use std::fmt;
 
 mod builder;
 mod word;
@@ -17,8 +18,14 @@ pub use builder::CrosswordGridBuilder;
 
 static VALIDCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-#[derive(Clone,Copy,Debug,Eq,Hash)]
+#[derive(Clone,Copy,Eq,Hash)]
 pub struct Location(pub isize, pub isize);
+
+impl fmt::Debug for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Location({}, {})", self.0, self.1)
+    }
+}
 
 impl PartialEq for Location {
     fn eq(&self, other: &Location) -> bool {
@@ -40,12 +47,27 @@ impl Location {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub struct CrosswordGrid {
     cell_map: HashMap<Location, Cell>,
     word_map: HashMap<usize, Word>,
     top_left_cell_index: Location,
     bottom_right_cell_index: Location,
+}
+
+impl fmt::Debug for CrosswordGrid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut words: Vec<(&usize, &Word)> = self.word_map.iter().collect();
+        words.sort_by_key(|a| *a.0);
+        let word_strs: Vec<String> = words.iter().map(|x| format!("{:?}: {:?}", x.0, x.1)).collect();
+
+        let mut cells: Vec<(&Location, &Cell)> = self.cell_map.iter().collect();
+        cells.sort_by_key(|a| (a.0.0, a.0.1));
+        let cell_strs: Vec<String> = cells.iter().map(|x| format!("{:?}: {:?}", x.0, x.1)).collect();
+
+        write!(f, "CrosswordGrid(\nIndices: Top left {:?} Bottom right {:?}\nWords:{:#?}\nCells:{:#?}\n))",
+               self.top_left_cell_index, self.bottom_right_cell_index, word_strs, cell_strs)
+    }
 }
 
 impl CrosswordGrid {
