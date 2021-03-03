@@ -74,20 +74,24 @@ impl CrosswordGenerator {
         }
     }
 
+    fn produce_child(&self, gridAttempt: &CrosswordGridAttempt) -> CrosswordGridAttempt {
+        let mut copied = gridAttempt.grid.clone();
+        let mut moves = 0;
+        let mut success = true;
+        while success && moves < self.moves_between_scores {
+            success = copied.place_random_word();
+            moves += 1;
+        }
+        CrosswordGridAttempt::new(copied)
+    }
+
     fn next_generation(&mut self) {
         for gridAttempt in self.current_generation.iter() {
             debug!("Considering extensions of grid:\n{}", gridAttempt.grid.to_string());
             let mut children = 0;
             while children < self.num_children {
-                let mut copied = gridAttempt.grid.clone();
-                let mut moves = 0;
-                let mut success = true;
-                while success && moves < self.moves_between_scores {
-                    success = copied.place_random_word();
-                    moves += 1;
-                }
-
-                self.next_generation.push(CrosswordGridAttempt::new(copied));
+                let child = self.produce_child(&gridAttempt);
+                self.next_generation.push(child);
                 children += 1;
             }
         }
