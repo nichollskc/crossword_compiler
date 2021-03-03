@@ -95,6 +95,7 @@ impl CrosswordGrid {
                             cell.get_down_word_id().unwrap()));
             }
         }
+        edges.sort();
         debug!("All intersections found {:#?}", edges);
         let mut graph = Graph::new_from_edges(edges);
 

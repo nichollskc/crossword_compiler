@@ -174,8 +174,9 @@ impl CrosswordGrid {
     }
 
     pub fn remove_random_leaves(&mut self, num_leaves: usize, seed: u64) {
-        let mut leaves = self.to_graph().find_leaves();
+        let mut leaves: Vec<usize> = self.to_graph().find_leaves();
         let mut rng = StdRng::seed_from_u64(seed);
+        leaves.sort();
         leaves.shuffle(&mut rng);
 
         debug!("Attempting to remove {} leaves", num_leaves);
