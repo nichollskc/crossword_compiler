@@ -92,3 +92,11 @@ fn test_generator_fifteen_squared_branching() {
         debug!("{}", grid.to_string());
     }
 }
+
+#[test]
+fn test_printing() {
+    let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+    let mut printer = crossword::grid::CrosswordPrinter::new(grid);
+    println!("{}", printer.print());
+    debug!("{:#?}", printer);
+}

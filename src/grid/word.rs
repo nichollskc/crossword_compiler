@@ -11,6 +11,7 @@ struct WordPlacement {
 pub(super) struct Word {
     pub word_text: String,
     placement: Option<WordPlacement>,
+    pub clue: String,
 }
 
 impl Word {
@@ -29,6 +30,7 @@ impl Word {
         Word {
             word_text: string.to_string(),
             placement: Some(placement),
+            clue: "Bla bla bla (6)".to_string(),
         }
     }
 
@@ -36,6 +38,7 @@ impl Word {
         Word {
             word_text: string.to_string(),
             placement: None,
+            clue: "Bla bla bla (6)".to_string(),
         }
     }
 

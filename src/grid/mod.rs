@@ -11,10 +11,12 @@ mod add_word;
 mod random;
 mod spacing;
 mod properties;
+mod pdf_conversion;
 
 use word::Word;
 use cell::Cell;
 pub use builder::CrosswordGridBuilder;
+pub use pdf_conversion::CrosswordPrinter;
 
 static VALIDCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
