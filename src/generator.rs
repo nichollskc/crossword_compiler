@@ -97,7 +97,7 @@ impl CrosswordGenerator {
             num_children: 10,
             max_rounds: 3,
             seed: 13,
-            move_types: generate_move_types_vec(5, 2),
+            move_types: generate_move_types_vec(10, 1),
         }
     }
 
@@ -112,12 +112,14 @@ impl CrosswordGenerator {
         let mut success = true;
         while success && moves < self.moves_between_scores {
             let extended_seed: u64 = seed + moves as u64;
-            match self.choose_random_move_type(extended_seed) {
+            let random_move = self.choose_random_move_type(extended_seed);
+            info!("Picked move {:?}", random_move);
+            match random_move {
                 MoveType::PlaceWord => {
                     success = copied.place_random_word(extended_seed);
                 },
                 MoveType::PruneLeaves => {
-                    copied.remove_random_leaves(2, extended_seed);
+                    copied.remove_random_leaves(1, extended_seed);
                 },
             }
             moves += 1;

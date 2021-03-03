@@ -183,8 +183,8 @@ impl CrosswordGrid {
         let mut count: usize = 0;
         while count < num_leaves && self.count_placed_words() > 1 {
             if let Some(word_id) = leaves.pop() {
-                self.remove_word(word_id);
                 info!("Removing leaf word {}", word_id);
+                self.remove_word(word_id);
             }
             count += 1;
         }

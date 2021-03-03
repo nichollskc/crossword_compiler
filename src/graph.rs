@@ -140,11 +140,13 @@ impl Graph {
     /// Returns true if all nodes are in one connected component, false otherwise
     pub fn is_connected(&self) -> bool {
         let mut connected = true;
-        let node_visits = self.traverse_count_node_visits();
-        for node_id in self.node_map.keys() {
-            if !node_visits.contains_key(node_id) {
-                connected = false;
-                warn!("Node never reached {}", node_id);
+        if self.num_nodes > 0 {
+            let node_visits = self.traverse_count_node_visits();
+            for node_id in self.node_map.keys() {
+                if !node_visits.contains_key(node_id) {
+                    connected = false;
+                    warn!("Node never reached {}", node_id);
+                }
             }
         }
         connected
