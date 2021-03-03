@@ -117,6 +117,42 @@ impl CrosswordGrid {
         (success, start_location)
     }
 
+    fn try_to_place_letter(&mut self,
+                           letter: char,
+                           word_id: usize,
+                           working_location: &Location,
+                           across: bool,
+                           adjacent_words: &mut HashSet<usize>) -> bool {
+        let mut success = true;
+        if success {
+            debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
+            // (1) Check we don't border a parallel word with more than 1 cell
+            // Fail if we are adjacent to a word we have already found ourselves
+            // adjacent to - keep track of which we've already visited using HashSet
+            if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
+                                                                  -1,
+                                                                  across) {
+                success = adjacent_words.insert(neighbour_id);
+                debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
+            }
+        }
+        if success {
+            if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
+                                                                  1,
+                                                                  across) {
+                success = adjacent_words.insert(neighbour_id);
+                debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
+            }
+        }
+
+        // (2) Check cell empty or matches letter
+        if success {
+            let cell = self.cell_map.get_mut(&working_location).unwrap();
+            success = cell.add_word(word_id, letter, across);
+        }
+        success
+    }
+
     pub fn try_place_word_in_cell(&mut self,
                                   location: Location,
                                   word_id: usize,
@@ -131,41 +167,23 @@ impl CrosswordGrid {
                location, across, index_in_word, word);
         assert!(!word.is_placed());
         if self.cell_is_open(location, across) {
+            // Check that the spaces at either end of the word are free, and calculate the
+            // first cell where we should start placing letters
             let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, across);
+            success = ends_free;
+
             let mut updated_locations: Vec<Location> = vec![];
             let mut adjacent_words: HashSet<usize> = HashSet::new();
-
-            success = ends_free;
 
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
                 if success {
-                    debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
-                    // (1) Check we don't border a parallel word with more than 1 cell
-                    // Fail if we are adjacent to a word we have already found ourselves
-                    // adjacent to - keep track of which we've already visited using HashSet
-                    if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
-                                                                          -1,
-                                                                          across) {
-                        success = adjacent_words.insert(neighbour_id);
-                        debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
-                    }
-                }
-                if success {
-                    if let Some(neighbour_id) = self.get_adjacent_word_id(&working_location,
-                                                                          1,
-                                                                          across) {
-                        success = adjacent_words.insert(neighbour_id);
-                        debug!("Checking neighbouring word {}, ok: {}", neighbour_id, success);
-                    }
-                }
+                    success = self.try_to_place_letter(letter, word_id, &working_location, across, &mut adjacent_words);
 
-                // (2) Check cell empty or matches letter
-                if success {
-                    let cell = self.cell_map.get_mut(&working_location).unwrap();
-                    success = cell.add_word(word_id, letter, across);
-                    updated_locations.push(working_location);
-                    working_location = working_location.relative_location_directed(1, across);
+                    if success {
+                        updated_locations.push(working_location);
+                        working_location = working_location.relative_location_directed(1, across);
+                    }
                 }
             }
 
