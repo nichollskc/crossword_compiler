@@ -31,21 +31,18 @@ impl FilledCell {
 #[derive(Clone,Copy,Debug)]
 pub(super) struct Cell {
     fill_status: FillStatus,
-    location: Location,
 }
 
 impl Cell {
-    pub fn new(letter: char, location: Location, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
+    pub fn new(letter: char, across_word_id: Option<usize>, down_word_id: Option<usize>) -> Self {
         Cell {
             fill_status: FillStatus::Filled(FilledCell::new(letter, across_word_id, down_word_id)),
-            location,
         }
     }
 
-    pub fn empty(location: Location) -> Self {
+    pub fn empty() -> Self {
         Cell {
             fill_status: FillStatus::Empty,
-            location,
         }
     }
 

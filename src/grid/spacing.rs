@@ -26,7 +26,7 @@ impl CrosswordGrid {
         let mut col = self.top_left_cell_index.1;
         while col <= self.bottom_right_cell_index.1 {
             let location = Location(new_row, col);
-            self.cell_map.insert(location, Cell::empty(location));
+            self.cell_map.insert(location, Cell::empty());
             col += 1;
         }
         if new_row > self.bottom_right_cell_index.0 {
@@ -41,7 +41,7 @@ impl CrosswordGrid {
         let mut row = self.top_left_cell_index.0;
         while row <= self.bottom_right_cell_index.0 {
             let location = Location(row, new_col);
-            self.cell_map.insert(location, Cell::empty(location));
+            self.cell_map.insert(location, Cell::empty());
             row += 1;
         }
         if new_col > self.bottom_right_cell_index.1 {

@@ -65,7 +65,7 @@ impl CrosswordGridBuilder {
                     self.current_down_word_ids.insert(self.col, None);
 
                     // Add empty cell to our grid
-                    self.cell_map.insert(location, Cell::empty(location));
+                    self.cell_map.insert(location, Cell::empty());
                 } else {
                     if let Some(word_id) = self.current_across_word_id {
                         self.word_map.get_mut(&word_id).unwrap().extend_word(c);
@@ -84,7 +84,6 @@ impl CrosswordGridBuilder {
 
                     self.cell_map.insert(location,
                                          Cell::new(c,
-                                                   location,
                                                    self.current_across_word_id,
                                                    *self.current_down_word_ids.get(&self.col).unwrap()));
                 }
