@@ -1,4 +1,4 @@
-use log::{info,warn,debug,error};
+use log::{info,debug};
 use std::collections::HashSet;
 
 use super::CrosswordGrid;

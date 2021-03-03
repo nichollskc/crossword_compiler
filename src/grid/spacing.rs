@@ -1,4 +1,4 @@
-use log::{info,warn,debug,error};
+use log::debug;
 
 use super::CrosswordGrid;
 use super::Location;
@@ -153,6 +153,7 @@ impl CrosswordGrid {
 mod tests {
     use super::*;
     use super::super::CrosswordGridBuilder;
+    use log::info;
 
     #[test]
     fn test_count_filled_cells() {

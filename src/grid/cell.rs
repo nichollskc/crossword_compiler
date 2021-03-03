@@ -1,7 +1,5 @@
-use log::{info,warn,debug,error};
+use log::{info,warn};
 use std::fmt;
-
-use super::Location;
 
 #[derive(Clone,Copy,Debug)]
 enum FillStatus {

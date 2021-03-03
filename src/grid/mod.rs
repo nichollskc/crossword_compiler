@@ -1,5 +1,5 @@
 use crate::graph::Graph;
-use log::{info,warn,debug,error};
+use log::{info,debug};
 use std::collections::HashMap;
 use std::fmt;
 

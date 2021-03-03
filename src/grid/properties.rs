@@ -1,5 +1,3 @@
-use log::{info,warn,debug,error};
-
 use super::CrosswordGrid;
 
 impl CrosswordGrid {

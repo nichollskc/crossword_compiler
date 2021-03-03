@@ -1,11 +1,10 @@
 use std::collections::{HashMap,HashSet};
 use std::fs;
 use std::cmp;
-use log::{info,warn,debug,error};
+use log::{info,debug};
 
 use rand::seq::SliceRandom;
-use rand::prelude::*;
-use rand::{Rng,SeedableRng};
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::grid::CrosswordGrid;

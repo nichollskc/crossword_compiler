@@ -1,5 +1,5 @@
 use std::cmp;
-use log::{info,warn,debug,error};
+use log::debug;
 use std::collections::HashMap;
 
 use std::fs;

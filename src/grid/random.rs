@@ -1,9 +1,8 @@
-use log::{info,warn,debug,error};
+use log::debug;
 use std::collections::HashMap;
 
 use rand::seq::SliceRandom;
-use rand::prelude::*;
-use rand::{Rng,SeedableRng};
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use super::CrosswordGrid;
@@ -196,6 +195,7 @@ impl CrosswordGrid {
 mod tests {
     use super::*;
     use super::super::CrosswordGridBuilder;
+    use log::info;
 
     #[test]
     fn test_simple_iterator() {

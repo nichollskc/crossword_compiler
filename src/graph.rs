@@ -1,4 +1,4 @@
-use log::{info,warn,debug,error};
+use log::{warn,debug};
 use std::collections::{HashSet,HashMap};
 
 #[derive(Debug)]
