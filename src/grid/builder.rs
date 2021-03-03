@@ -107,7 +107,7 @@ impl CrosswordGridBuilder {
         }
 
         for word_id in singleton_word_ids {
-            grid.remove_word(word_id);
+            grid.delete_word(word_id);
         }
 
         grid.fit_to_size();

@@ -79,6 +79,18 @@ impl Cell {
         }
     }
 
+    pub fn update_word_id(&mut self, old_word_id: usize, new_word_id: usize) {
+        if let FillStatus::Filled(mut filled_cell) = self.fill_status {
+            if self.get_across_word_id() == Some(old_word_id) {
+                filled_cell.across_word_id = Some(new_word_id);
+            }
+            if self.get_down_word_id() == Some(old_word_id) {
+                filled_cell.down_word_id = Some(new_word_id);
+            }
+            self.fill_status = FillStatus::Filled(filled_cell);
+        }
+    }
+
     pub fn add_word(&mut self, word_id: usize, letter: char, across: bool) -> bool {
         let mut success = true;
 

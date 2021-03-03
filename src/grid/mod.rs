@@ -78,6 +78,7 @@ impl CrosswordGrid {
 
     pub fn new_single_placed(word: &str, placed_id: usize, all_words: HashMap<usize, &str>) -> Self {
         let mut singleton = CrosswordGrid::new_single_word(word);
+        singleton.update_word_id(0, placed_id);
         for (other_word_id, other_word) in all_words.iter() {
             if *other_word_id != placed_id {
                 singleton.add_unplaced_word_at_id(&other_word, *other_word_id);
@@ -174,8 +175,22 @@ impl CrosswordGrid {
         word_id
     }
 
-    pub fn remove_word(&mut self, word_id: usize) {
+    pub fn update_word_id(&mut self, old_word_id: usize, new_word_id: usize) {
+        // Move in hashmap
+        let word: Word = self.word_map.remove(&old_word_id).unwrap();
+        self.word_map.insert(new_word_id, word);
+
+        for (_location, cell) in self.cell_map.iter_mut() {
+            cell.update_word_id(old_word_id, new_word_id);
+        }
+    }
+
+    pub fn delete_word(&mut self, word_id:usize) {
+        self.unplace_word(word_id);
         self.word_map.remove(&word_id);
+    }
+
+    pub fn unplace_word(&mut self, word_id: usize) {
         for (_location, cell) in self.cell_map.iter_mut() {
             cell.remove_word(word_id);
         }
