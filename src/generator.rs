@@ -116,14 +116,9 @@ impl CrosswordGenerator {
 
     pub fn new_from_singletons(words: Vec<&str>) -> Self {
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
-        let mut word_map: HashMap<usize, (&str, Option<Direction>)> = HashMap::new();
-        for (word_id, word) in words.iter().enumerate() {
-            word_map.insert(word_id, (word, None));
-        }
 
-        for (word_id, word) in words.iter().enumerate() {
-            let singleton = CrosswordGrid::new_single_placed(word, word_id, word_map.clone());
-            singletons.push(CrosswordGridAttempt::new(singleton));
+        for grid in CrosswordGrid::random_singleton_grids(words) {
+            singletons.push(CrosswordGridAttempt::new(grid));
         }
 
         info!("First of first generation is {}", singletons[0].grid.to_string());

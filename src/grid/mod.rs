@@ -92,19 +92,40 @@ impl CrosswordGrid {
         builder.from_string(word)
     }
 
-    pub fn new_single_placed(word: &str,
-                             placed_id: usize,
-                             all_words: HashMap<usize, (&str, Option<Direction>)>) -> Self {
-        let mut singleton = CrosswordGrid::new_single_word(word);
-        singleton.update_word_id(0, placed_id);
-        for (other_word_id, other_word) in all_words.iter() {
-            if *other_word_id == placed_id {
-                singleton.word_map.get_mut(&placed_id).unwrap().update_required_direction(other_word.1);
-            } else {
-                singleton.add_unplaced_word_at_id(&other_word.0, *other_word_id, other_word.1);
-            }
+    fn new_from_wordmap_single_placed(word_id: usize,
+                                      direction: Direction,
+                                      mut word_map: HashMap<usize, Word>) -> Self {
+        let mut location = Location(0, 0);
+        let across_id: Option<usize>;
+        let down_id: Option<usize>;
+        let mut cell_map: HashMap<Location, Cell> = HashMap::new();
+
+        match direction {
+            Direction::Across => {
+                across_id = Some(word_id);
+                down_id = None;
+            },
+            Direction::Down => {
+                across_id = None;
+                down_id = Some(word_id);
+            },
+        };
+        let mut word = word_map.get_mut(&word_id).unwrap();
+        word.update_location(location, direction);
+        for c in word.word_text.chars() {
+            cell_map.insert(location, Cell::new(c, across_id, down_id));
+            location = location.relative_location_directed(1, direction);
         }
-        singleton
+
+        let mut grid = CrosswordGrid {
+            cell_map,
+            word_map,
+            top_left_cell_index: Location(0, 0),
+            bottom_right_cell_index: location.relative_location_directed(-1, direction),
+        };
+
+        grid.fit_to_size();
+        grid
     }
 
     pub fn to_graph(&self) -> Graph {

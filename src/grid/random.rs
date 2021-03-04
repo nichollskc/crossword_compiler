@@ -190,6 +190,26 @@ impl CrosswordGrid {
             count += 1;
         }
     }
+
+    /// For each word in the word list, generates a grid where only that word is placed
+    /// Direction is chosen randomly from valid directions for the word
+    /// All other words are left unplaced
+    pub fn random_singleton_grids(words: Vec<&str>) -> Vec<Self> {
+        let mut singletons: Vec<Self> = vec![];
+
+        let mut word_map: HashMap<usize, Word> = HashMap::new();
+        for (word_id, word) in words.iter().enumerate() {
+            word_map.insert(word_id, Word::new_unplaced(word, None));
+        }
+
+        for (word_id, word) in words.iter().enumerate() {
+            let singleton = CrosswordGrid::new_from_wordmap_single_placed(word_id,
+                                                                          Direction::Across,
+                                                                          word_map.clone());
+            singletons.push(singleton);
+        }
+        singletons
+    }
 }
 
 #[cfg(test)]
