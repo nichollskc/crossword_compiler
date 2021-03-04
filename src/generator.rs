@@ -8,6 +8,7 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::grid::CrosswordGrid;
+use crate::grid::Direction;
 
 #[derive(Clone,Copy,Debug)]
 enum MoveType {
@@ -115,9 +116,9 @@ impl CrosswordGenerator {
 
     pub fn new_from_singletons(words: Vec<&str>) -> Self {
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
-        let mut word_map: HashMap<usize, &str> = HashMap::new();
+        let mut word_map: HashMap<usize, (&str, Option<Direction>)> = HashMap::new();
         for (word_id, word) in words.iter().enumerate() {
-            word_map.insert(word_id, word);
+            word_map.insert(word_id, (word, None));
         }
 
         for (word_id, word) in words.iter().enumerate() {

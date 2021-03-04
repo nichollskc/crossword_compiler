@@ -100,4 +100,8 @@ impl Word {
                 "Attempted to add word with invalid direction {:?}: {:?}", direction, self);
         self.placement = Some(WordPlacement::new(&self.word_text, start_location, direction));
     }
+
+    pub fn update_required_direction(&mut self, required_direction: Option<Direction>) {
+        self.required_direction = required_direction;
+    }
 }

@@ -94,12 +94,14 @@ impl CrosswordGrid {
 
     pub fn new_single_placed(word: &str,
                              placed_id: usize,
-                             all_words: HashMap<usize, &str>) -> Self {
+                             all_words: HashMap<usize, (&str, Option<Direction>)>) -> Self {
         let mut singleton = CrosswordGrid::new_single_word(word);
         singleton.update_word_id(0, placed_id);
         for (other_word_id, other_word) in all_words.iter() {
-            if *other_word_id != placed_id {
-                singleton.add_unplaced_word_at_id(&other_word, *other_word_id, None);
+            if *other_word_id == placed_id {
+                singleton.word_map.get_mut(&placed_id).unwrap().update_required_direction(other_word.1);
+            } else {
+                singleton.add_unplaced_word_at_id(&other_word.0, *other_word_id, other_word.1);
             }
         }
         singleton
