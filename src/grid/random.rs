@@ -10,7 +10,7 @@ use super::Location;
 use super::Direction;
 
 use super::Word;
-use super::VALIDCHARS;
+use super::VALID_ANSWERCHARS;
 
 #[derive(Debug,Clone)]
 struct PlacementAttempt {
@@ -33,10 +33,10 @@ struct PlacementAttemptIterator {
 impl PlacementAttemptIterator {
     fn new(grid: &CrosswordGrid, seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
-        let empty_word = Word::new_unplaced("", None);
+        let empty_word = Word::new_unplaced("", "", None);
 
         let mut letter_to_locations: HashMap<char, Vec<(Location, Direction)>> = HashMap::new();
-        for c in VALIDCHARS.chars() {
+        for c in VALID_ANSWERCHARS.chars() {
             letter_to_locations.insert(c, vec![]);
         }
 
@@ -50,7 +50,7 @@ impl PlacementAttemptIterator {
             letter_to_locations.get_mut(&letter).unwrap().push((*location, empty_direction));
         }
 
-        for c in VALIDCHARS.chars() {
+        for c in VALID_ANSWERCHARS.chars() {
             letter_to_locations.get_mut(&c).unwrap().sort_by_key(|a| (a.1, a.0.0, a.0.1));
             letter_to_locations.get_mut(&c).unwrap().shuffle(&mut rng);
         }
@@ -199,7 +199,7 @@ impl CrosswordGrid {
 
         let mut word_map: HashMap<usize, Word> = HashMap::new();
         for (word_id, word) in words.iter().enumerate() {
-            word_map.insert(word_id, Word::new_unplaced(word, None));
+            word_map.insert(word_id, Word::new_parsed(word));
         }
 
         for (word_id, word) in words.iter().enumerate() {
@@ -225,23 +225,23 @@ mod tests {
         let mut attempts_expected = 0;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
 
-        grid.add_unplaced_word("MOP", None);
+        grid.add_unplaced_word("MOP", "", None);
         attempts_expected += 1;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
 
-        grid.add_unplaced_word("LOOP", None);
+        grid.add_unplaced_word("LOOP", "", None);
         attempts_expected += 2;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
 
-        grid.add_unplaced_word("HARICOT", None);
+        grid.add_unplaced_word("HARICOT", "", None);
         attempts_expected += 3;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
 
-        grid.add_unplaced_word("LOLLIPOP", None);
+        grid.add_unplaced_word("LOLLIPOP", "", None);
         attempts_expected += 3 + 2;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
 
-        grid.add_unplaced_word("ABACUS", None);
+        grid.add_unplaced_word("ABACUS", "", None);
         attempts_expected += 4;
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), attempts_expected);
     }
@@ -250,9 +250,9 @@ mod tests {
     fn test_iterator() {
         crate::logging::init_logger(true);
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
-        grid.add_unplaced_word("ABACUS", None);
+        grid.add_unplaced_word("ABACUS", "", None);
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), 9*2 + 1);
-        grid.add_unplaced_word("LOOP", None);
+        grid.add_unplaced_word("LOOP", "", None);
         assert_eq!(PlacementAttemptIterator::new(&grid, 13).count(), 9*2 + 1 + 4*2 + 1);
     }
 
@@ -260,16 +260,16 @@ mod tests {
     fn test_use_attempts() {
         crate::logging::init_logger(true);
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
-        grid.add_unplaced_word("ABACUS", None);
-        grid.add_unplaced_word("LOOP", None);
-        grid.add_unplaced_word("BEE", None);
+        grid.add_unplaced_word("ABACUS", "", None);
+        grid.add_unplaced_word("LOOP", "", None);
+        grid.add_unplaced_word("BEE", "", None);
         assert_eq!(count_successful_attempts(&grid), 5);
 
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
-        grid.add_unplaced_word("PROBONO", None);
-        grid.add_unplaced_word("PASTURE", None);
-        grid.add_unplaced_word("VETO", None);
-        grid.add_unplaced_word("EROS", None);
+        grid.add_unplaced_word("PROBONO", "", None);
+        grid.add_unplaced_word("PASTURE", "", None);
+        grid.add_unplaced_word("VETO", "", None);
+        grid.add_unplaced_word("EROS", "", None);
         // Note that whenever a valid word placement crosses multiple open cells, you will get a
         // success starting from each of the open cells
         assert_eq!(count_successful_attempts(&grid), 2 + 5 + 3 + 5);

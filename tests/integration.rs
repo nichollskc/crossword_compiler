@@ -35,10 +35,10 @@ fn single_word() {
 #[test]
 fn add_random_words() {
     let mut grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
-    grid.add_unplaced_word("PROBONO", None);
-    grid.add_unplaced_word("PASTURE", None);
-    grid.add_unplaced_word("VETO", None);
-    grid.add_unplaced_word("EROS", None);
+    grid.add_unplaced_word("PROBONO", "", None);
+    grid.add_unplaced_word("PASTURE", "", None);
+    grid.add_unplaced_word("VETO", "", None);
+    grid.add_unplaced_word("EROS", "", None);
 
     let mut success = true;
     while success {

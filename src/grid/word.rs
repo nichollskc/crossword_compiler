@@ -1,5 +1,10 @@
+use log::warn;
+
 use super::Location;
 use super::Direction;
+use super::{VALID_CLUECHARS,VALID_ANSWERCHARS};
+
+use crate::sanitise_string;
 
 #[derive(Clone,Copy,Debug)]
 struct WordPlacement {
@@ -41,13 +46,37 @@ impl Word {
         }
     }
 
-    pub fn new_unplaced(string: &str, required_direction: Option<Direction>) -> Self {
+    pub fn new_unplaced(word_text: &str, clue: &str, required_direction: Option<Direction>) -> Self {
         Word {
-            word_text: string.to_string(),
+            word_text: word_text.to_string(),
             placement: None,
-            clue: "Bla bla bla (6)".to_string(),
+            clue: clue.to_string(),
             required_direction,
         }
+    }
+
+    pub fn new_parsed(string: &str) -> Self {
+        let mut components = string.split("::");
+
+        let word_text: &str = components.next().unwrap();
+        let sanitised_word: String = sanitise_string(word_text, VALID_ANSWERCHARS);
+        let clue: &str = match components.next() {
+            Some(clue_text) => clue_text,
+            None => "",
+        };
+        let sanitised_clue: String = sanitise_string(clue, VALID_CLUECHARS);
+        let required_direction: Option<Direction> = match components.next() {
+            Some("ACROSS") => Some(Direction::Across),
+            Some("across") => Some(Direction::Across),
+            Some("DOWN") => Some(Direction::Down),
+            Some("down") => Some(Direction::Down),
+            Some(x) => {
+                warn!("Unexpected word at end of clue, expected 'ACROSS', 'DOWN' or empty. Parsed as if it were empty. {}", x);
+                None
+            },
+            None => None,
+        };
+        Word::new_unplaced(&sanitised_word, &sanitised_clue, required_direction)
     }
 
     pub fn get_location(&self) -> Option<(Location, Location, Direction)> {

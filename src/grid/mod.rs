@@ -18,7 +18,8 @@ use cell::Cell;
 pub use builder::CrosswordGridBuilder;
 pub use pdf_conversion::CrosswordPrinter;
 
-static VALIDCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static VALID_ANSWERCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-;:,.?!@'`\"&*()$£%";
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum Direction {
@@ -206,14 +207,14 @@ impl CrosswordGrid {
         word_id
     }
 
-    pub fn add_unplaced_word_at_id(&mut self, word_text: &str, word_id: usize, required_direction: Option<Direction>) {
-        let word = Word::new_unplaced(word_text, required_direction);
+    pub fn add_unplaced_word_at_id(&mut self, word_text: &str, clue: &str, word_id: usize, required_direction: Option<Direction>) {
+        let word = Word::new_unplaced(word_text, clue, required_direction);
         self.word_map.insert(word_id, word);
     }
 
-    pub fn add_unplaced_word(&mut self, word_text: &str, required_direction: Option<Direction>) -> usize {
+    pub fn add_unplaced_word(&mut self, word_text: &str, clue: &str, required_direction: Option<Direction>) -> usize {
         let word_id = self.find_lowest_unused_word_id();
-        self.add_unplaced_word_at_id(word_text, word_id, required_direction);
+        self.add_unplaced_word_at_id(word_text, clue, word_id, required_direction);
         word_id
     }
 
