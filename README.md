@@ -9,9 +9,6 @@ Tool to fit a list of words into a crossword grid. It uses a genetic algorithm t
 - Allow adjustment of scoring function e.g. weights
 - Final output step to fill in as many words as possible in the grid
 - Add code to remove words as well. Probably by splitting grid into connected components.
-- Write latex output to file and run 'pdflatex <file>.tex'
-- Read in clues from file (example is `tests/resources/input_with_clues.txt`)
-- Allow clues to be restricted to down or across (add required_direction: Option<Direction> to Word)
 
 # Web app
 
