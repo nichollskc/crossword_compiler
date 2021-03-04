@@ -7,6 +7,6 @@ fn main() {
     for grid in results.iter() {
         println!("{}", grid.to_string());
         let mut printer = crossword::grid::CrosswordPrinter::new(grid.clone());
-        println!("{}", printer.print());
+        printer.print_to_file("tmp.tex");
     }
 }

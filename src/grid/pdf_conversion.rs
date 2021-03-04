@@ -1,10 +1,11 @@
 use std::collections::HashSet;
+use std::fs;
 
 use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
 
-static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage[unboxed]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3}\n\\begin{document}\n";
+static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage[unboxed]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3 \\\\}\n\\begin{document}\n";
 static DOCUMENT_END: &str = "\n\n\\end{document}";
 
 #[derive(Debug)]
@@ -100,5 +101,9 @@ impl CrosswordPrinter {
         }
 
         format!("{}{}\\end{{Puzzle}}\n\n{}\n{}\n\n{}", DOCUMENT_START, self.printed_grid, self.across_clues, self.down_clues, DOCUMENT_END)
+    }
+
+    pub fn print_to_file(&mut self, filename: &str) {
+        fs::write(filename, self.print().as_bytes()).expect("Unable to write to file!");
     }
 }
