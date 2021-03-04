@@ -92,12 +92,14 @@ impl CrosswordGrid {
         builder.from_string(word)
     }
 
-    pub fn new_single_placed(word: &str, placed_id: usize, all_words: HashMap<usize, &str>) -> Self {
+    pub fn new_single_placed(word: &str,
+                             placed_id: usize,
+                             all_words: HashMap<usize, &str>) -> Self {
         let mut singleton = CrosswordGrid::new_single_word(word);
         singleton.update_word_id(0, placed_id);
         for (other_word_id, other_word) in all_words.iter() {
             if *other_word_id != placed_id {
-                singleton.add_unplaced_word_at_id(&other_word, *other_word_id);
+                singleton.add_unplaced_word_at_id(&other_word, *other_word_id, None);
             }
         }
         singleton
@@ -181,14 +183,14 @@ impl CrosswordGrid {
         word_id
     }
 
-    pub fn add_unplaced_word_at_id(&mut self, word_text: &str, word_id: usize) {
-        let word = Word::new_unplaced(word_text);
+    pub fn add_unplaced_word_at_id(&mut self, word_text: &str, word_id: usize, required_direction: Option<Direction>) {
+        let word = Word::new_unplaced(word_text, required_direction);
         self.word_map.insert(word_id, word);
     }
 
-    pub fn add_unplaced_word(&mut self, word_text: &str) -> usize {
+    pub fn add_unplaced_word(&mut self, word_text: &str, required_direction: Option<Direction>) -> usize {
         let word_id = self.find_lowest_unused_word_id();
-        self.add_unplaced_word_at_id(word_text, word_id);
+        self.add_unplaced_word_at_id(word_text, word_id, required_direction);
         word_id
     }
 

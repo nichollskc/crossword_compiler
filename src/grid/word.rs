@@ -32,21 +32,21 @@ pub(super) struct Word {
 }
 
 impl Word {
-    pub fn new(string: &str, start_location: Location, direction: Direction) -> Self {
+    pub fn new(string: &str, start_location: Location, direction: Direction, required_direction: Option<Direction>) -> Self {
         Word {
             word_text: string.to_string(),
             placement: Some(WordPlacement::new(string, start_location, direction)),
             clue: "Bla bla bla (6)".to_string(),
-            required_direction: None,
+            required_direction,
         }
     }
 
-    pub fn new_unplaced(string: &str) -> Self {
+    pub fn new_unplaced(string: &str, required_direction: Option<Direction>) -> Self {
         Word {
             word_text: string.to_string(),
             placement: None,
             clue: "Bla bla bla (6)".to_string(),
-            required_direction: None,
+            required_direction,
         }
     }
 
@@ -96,6 +96,8 @@ impl Word {
     }
 
     pub fn update_location(&mut self, start_location: Location, direction: Direction) {
+        assert!(self.allowed_in_direction(direction),
+                "Attempted to add word with invalid direction {:?}: {:?}", direction, self);
         self.placement = Some(WordPlacement::new(&self.word_text, start_location, direction));
     }
 }

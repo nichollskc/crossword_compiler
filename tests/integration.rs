@@ -35,10 +35,10 @@ fn single_word() {
 #[test]
 fn add_random_words() {
     let mut grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
-    grid.add_unplaced_word("PROBONO");
-    grid.add_unplaced_word("PASTURE");
-    grid.add_unplaced_word("VETO");
-    grid.add_unplaced_word("EROS");
+    grid.add_unplaced_word("PROBONO", None);
+    grid.add_unplaced_word("PASTURE", None);
+    grid.add_unplaced_word("VETO", None);
+    grid.add_unplaced_word("EROS", None);
 
     let mut success = true;
     while success {
@@ -81,6 +81,7 @@ fn test_generator_fifteen_squared() {
     }
 }
 
+#[ignore] // Ignore by default as it is slow
 #[test]
 fn test_generator_fifteen_squared_branching() {
     crossword::logging::init_logger(true);

@@ -71,14 +71,14 @@ impl CrosswordGridBuilder {
                     if let Some(word_id) = self.current_across_word_id {
                         self.word_map.get_mut(&word_id).unwrap().extend_word(c);
                     } else {
-                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, Direction::Across));
+                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, Direction::Across, None));
                         self.current_across_word_id = Some(self.word_index);
                         self.word_index += 1;
                     }
                     if let Some(word_id) = *self.current_down_word_ids.get(&self.col).unwrap() {
                         self.word_map.get_mut(&word_id).unwrap().extend_word(c);
                     } else {
-                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, Direction::Down));
+                        self.word_map.insert(self.word_index, Word::new(&c.to_string(), location, Direction::Down, None));
                         self.current_down_word_ids.insert(self.col, Some(self.word_index));
                         self.word_index += 1;
                     }

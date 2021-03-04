@@ -306,11 +306,11 @@ mod tests {
         grid.fill_black_cells();
         grid.check_valid();
 
-        let arrival_word_id = grid.add_unplaced_word("ARRIVAL");
-        let bear_word_id = grid.add_unplaced_word("BEARER");
-        let innards_word_id = grid.add_unplaced_word("INNARDS");
-        let cup_word_id = grid.add_unplaced_word("CUP");
-        let cap_word_id = grid.add_unplaced_word("CAP");
+        let arrival_word_id = grid.add_unplaced_word("ARRIVAL", None);
+        let bear_word_id = grid.add_unplaced_word("BEARER", None);
+        let innards_word_id = grid.add_unplaced_word("INNARDS", None);
+        let cup_word_id = grid.add_unplaced_word("CUP", None);
+        let cap_word_id = grid.add_unplaced_word("CAP", None);
         grid.check_valid();
         debug!("{:#?}", grid);
 
@@ -345,7 +345,7 @@ mod tests {
     fn add_word_to_grid_adjacent() {
         crate::logging::init_logger(true);
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/bear_button.txt");
-        let button_word_id = grid.add_unplaced_word("BUTTON");
+        let button_word_id = grid.add_unplaced_word("BUTTON", None);
         grid.check_valid();
         assert!(!grid.try_place_word_in_cell(Location(3, 5), button_word_id, 2, Direction::Across));
     }
