@@ -77,9 +77,13 @@ impl Word {
         }
     }
 
-    pub fn new_parsed(string: &str) -> Self {
+    pub fn new_parsed(string: &str) -> Option<Self> {
         let (word, clue, required_direction) = parse_clue_string(string);
-        Word::new_unplaced(&word, &clue, required_direction)
+        if word.len() > 1 {
+            Some(Word::new_unplaced(&word, &clue, required_direction))
+        } else {
+            None
+        }
     }
 
     pub fn get_location(&self) -> Option<(Location, Location, Direction)> {
@@ -116,6 +120,10 @@ impl Word {
 
     pub fn get_char_at_index(&self, index: usize) -> char {
         self.word_text.chars().nth(index).unwrap()
+    }
+
+    pub fn get_required_direction(&self) -> Option<Direction> {
+        self.required_direction
     }
 
     pub fn allowed_in_direction(&self, direction: Direction) -> bool {

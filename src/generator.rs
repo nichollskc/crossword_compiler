@@ -1,4 +1,4 @@
-use std::collections::{HashMap,HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::cmp;
 use log::{info,debug};
@@ -8,7 +8,6 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::grid::CrosswordGrid;
-use crate::grid::Direction;
 
 #[derive(Clone,Copy,Debug)]
 enum MoveType {
@@ -115,9 +114,11 @@ impl CrosswordGenerator {
     }
 
     pub fn new_from_singletons(words: Vec<&str>) -> Self {
+        let settings = CrosswordGeneratorSettings::default();
+
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
 
-        for grid in CrosswordGrid::random_singleton_grids(words) {
+        for grid in CrosswordGrid::random_singleton_grids(words, settings.seed) {
             singletons.push(CrosswordGridAttempt::new(grid));
         }
 
@@ -127,7 +128,7 @@ impl CrosswordGenerator {
             current_generation: singletons,
             next_generation: vec![],
             round: 0,
-            settings: CrosswordGeneratorSettings::default(),
+            settings,
         }
     }
 

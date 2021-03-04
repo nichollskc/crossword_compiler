@@ -194,17 +194,29 @@ impl CrosswordGrid {
     /// For each word in the word list, generates a grid where only that word is placed
     /// Direction is chosen randomly from valid directions for the word
     /// All other words are left unplaced
-    pub fn random_singleton_grids(words: Vec<&str>) -> Vec<Self> {
+    pub fn random_singleton_grids(words: Vec<&str>, seed: u64) -> Vec<Self> {
+        let mut rng: StdRng = StdRng::seed_from_u64(seed);
         let mut singletons: Vec<Self> = vec![];
+        let mut word_ids: Vec<usize> = vec![];
 
         let mut word_map: HashMap<usize, Word> = HashMap::new();
-        for (word_id, word) in words.iter().enumerate() {
-            word_map.insert(word_id, Word::new_parsed(word));
+        for (word_id, word_str) in words.iter().enumerate() {
+            if let Some(word) = Word::new_parsed(word_str) {
+                word_map.insert(word_id, word);
+                word_ids.push(word_id);
+            }
         }
 
-        for (word_id, word) in words.iter().enumerate() {
-            let singleton = CrosswordGrid::new_from_wordmap_single_placed(word_id,
-                                                                          Direction::Across,
+        for word_id in word_ids.iter() {
+            let word = word_map.get(word_id).unwrap();
+            let direction: Direction = if word.get_required_direction().is_none() {
+                *[Direction::Down, Direction::Across].choose(&mut rng).unwrap()
+            } else {
+                word.get_required_direction().unwrap()
+            };
+
+            let singleton = CrosswordGrid::new_from_wordmap_single_placed(*word_id,
+                                                                          direction,
                                                                           word_map.clone());
             singletons.push(singleton);
         }
