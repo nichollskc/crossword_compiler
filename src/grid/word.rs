@@ -8,6 +8,21 @@ struct WordPlacement {
     direction: Direction,
 }
 
+impl WordPlacement {
+    pub fn new(string: &str, start_location: Location, direction: Direction) -> Self {
+        let mut end_location = start_location.clone();
+        match direction {
+            Direction::Across => { end_location.1 += string.len() as isize - 1; },
+            Direction::Down => { end_location.0 += string.len() as isize - 1; },
+        }
+        WordPlacement {
+            start_location,
+            end_location,
+            direction,
+        }
+    }
+}
+
 #[derive(Clone,Debug)]
 pub(super) struct Word {
     pub word_text: String,
@@ -18,19 +33,9 @@ pub(super) struct Word {
 
 impl Word {
     pub fn new(string: &str, start_location: Location, direction: Direction) -> Self {
-        let mut end_location = start_location.clone();
-        match direction {
-            Direction::Across => { end_location.1 += string.len() as isize - 1; },
-            Direction::Down => { end_location.0 += string.len() as isize - 1; },
-        }
-        let placement = WordPlacement {
-            start_location,
-            end_location,
-            direction,
-        };
         Word {
             word_text: string.to_string(),
-            placement: Some(placement),
+            placement: Some(WordPlacement::new(string, start_location, direction)),
             clue: "Bla bla bla (6)".to_string(),
             required_direction: None,
         }
@@ -79,5 +84,18 @@ impl Word {
 
     pub fn get_char_at_index(&self, index: usize) -> char {
         self.word_text.chars().nth(index).unwrap()
+    }
+
+    pub fn allowed_in_direction(&self, direction: Direction) -> bool {
+        match self.required_direction {
+            // If no requirements, anything is allowed
+            None => true,
+            // If there is a requirement, only allowed if the directions match
+            Some(dir) => dir == direction,
+        }
+    }
+
+    pub fn update_location(&mut self, start_location: Location, direction: Direction) {
+        self.placement = Some(WordPlacement::new(&self.word_text, start_location, direction));
     }
 }

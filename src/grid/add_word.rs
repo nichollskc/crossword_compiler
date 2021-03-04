@@ -184,11 +184,14 @@ impl CrosswordGrid {
         self.fill_black_cells();
 
         let mut success: bool;
-        let word = self.word_map.get(&word_id).unwrap().clone();
+        let mut word = self.word_map.get(&word_id).unwrap().clone();
         info!("Attempting to add word to location: {:?} word_direction: {:?} index: {} word: {:?}",
                location, word_direction, index_in_word, word);
         assert!(!word.is_placed());
-        if self.cell_is_open(location, word_direction) {
+        if !word.allowed_in_direction(word_direction) {
+            // If the word requires to be placed in the opposite configuration, fail automatically
+            success = false;
+        } else if self.cell_is_open(location, word_direction) {
             // Check that the spaces at either end of the word are free, and calculate the
             // first cell where we should start placing letters
             let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, word_direction);
@@ -206,9 +209,10 @@ impl CrosswordGrid {
                 }
             }
 
-            // If we have failed, undo anything we did i.e. remove word from cells
+            // If we have succeeded, update the location. Else, we failed, undo anything we did i.e. remove word from cells
             if success {
-                self.word_map.insert(word_id, Word::new(&word.word_text, start_location, word_direction));
+                word.update_location(start_location, word_direction);
+                self.word_map.insert(word_id, word);
             } else {
                 for updated_location in updated_locations {
                     let cell = self.cell_map.get_mut(&updated_location).unwrap();
@@ -219,11 +223,11 @@ impl CrosswordGrid {
             success = false;
         }
 
+        let updated_word = self.word_map.get(&word_id).unwrap().clone();
         if !success {
-            assert!(!word.is_placed());
+            assert!(!updated_word.is_placed());
         }
-        let word = self.word_map.get(&word_id).unwrap().clone();
-        debug!("After possibly adding {:?}", word);
+        debug!("After possibly adding {:?}", updated_word);
         self.fit_to_size();
         success
     }
