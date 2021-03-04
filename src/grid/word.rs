@@ -172,5 +172,11 @@ mod tests {
         parse_clue_test_helper_across("WORD::clue with multiple words::ACROSS",
                                       "WORD", "clue with multiple words");
         parse_clue_test_helper_none("TEA-TIME::clue", "TEATIME", "clue");
+        parse_clue_test_helper_none("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::",
+                                    "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)");
+        parse_clue_test_helper_across("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::ACROSS",
+                                    "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)");
+        parse_clue_test_helper_down("SONNET::Lines up outside No 10 — speech just beginning (6)::DOWN",
+                                    "SONNET", "Lines up outside No 10 — speech just beginning (6)");
     }
 }

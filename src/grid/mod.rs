@@ -19,7 +19,7 @@ pub use builder::CrosswordGridBuilder;
 pub use pdf_conversion::CrosswordPrinter;
 
 static VALID_ANSWERCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_ -;:,.?!@'`\"&*()$£%";
+static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_— -;:,.?!@'`\"&*()$£%";
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum Direction {
