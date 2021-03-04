@@ -2,6 +2,7 @@ use log::{info,debug};
 
 use super::CrosswordGrid;
 use super::Location;
+use super::Direction;
 
 use super::Word;
 
@@ -15,10 +16,10 @@ impl CrosswordGrid {
         }
 
         for word in self.word_map.values() {
-            if let Some((start_location, end_location, across)) = word.get_location() {
+            if let Some((start_location, end_location, direction)) = word.get_location() {
                 let mut black_cells: Vec<Location> = vec![];
-                black_cells.push(start_location.relative_location_directed(-1, across));
-                black_cells.push(end_location.relative_location_directed(1, across));
+                black_cells.push(start_location.relative_location_directed(-1, direction));
+                black_cells.push(end_location.relative_location_directed(1, direction));
 
                 for cell_location in black_cells {
                     if let Some(cell) = self.cell_map.get_mut(&cell_location) {
@@ -31,20 +32,19 @@ impl CrosswordGrid {
         }
     }
 
-    fn get_adjacent_word_id(&self, location: &Location, move_by: isize, move_across: bool, across_id: bool) -> Option<usize> {
-        let neighbour_location = location.relative_location_directed(move_by, move_across);
+    fn get_adjacent_word_id(&self, location: &Location, move_by: isize, move_direction: Direction, word_direction: Direction) -> Option<usize> {
+        let neighbour_location = location.relative_location_directed(move_by, move_direction);
         let cell = self.cell_map.get(&neighbour_location).unwrap();
         debug!("Looking at adjacent cell {:?}", cell);
-        if across_id {
-            cell.get_across_word_id()
-        } else {
-            cell.get_down_word_id()
+        match word_direction {
+            Direction::Across => cell.get_across_word_id(),
+            Direction::Down => cell.get_down_word_id(),
         }
     }
 
-    fn adjacent_word_ids_mismatch(&self, location: &Location, move_by: isize, word_across: bool, expected_perp_id: Option<usize>) -> bool {
-        let found_perp_id: Option<usize> = self.get_adjacent_word_id(location, move_by, !word_across, !word_across);
-        let found_parallel_id: Option<usize> = self.get_adjacent_word_id(location, move_by, !word_across, word_across);
+    fn adjacent_word_ids_mismatch(&self, location: &Location, move_by: isize, word_direction: Direction, expected_perp_id: Option<usize>) -> bool {
+        let found_perp_id: Option<usize> = self.get_adjacent_word_id(location, move_by, word_direction.rotate(), word_direction.rotate());
+        let found_parallel_id: Option<usize> = self.get_adjacent_word_id(location, move_by, word_direction.rotate(), word_direction);
         let invalid: bool;
 
         if found_parallel_id.is_none() {
@@ -110,11 +110,10 @@ impl CrosswordGrid {
         }
     }
 
-    fn cell_is_open(&self, location: Location, across: bool) -> bool {
-        if across {
-            self.cell_is_open_across(location)
-        } else {
-            self.cell_is_open_down(location)
+    fn cell_is_open(&self, location: Location, direction: Direction) -> bool {
+        match direction {
+            Direction::Across => self.cell_is_open_across(location),
+            Direction::Down => self.cell_is_open_down(location),
         }
     }
 
@@ -122,21 +121,21 @@ impl CrosswordGrid {
                                          location: Location,
                                          word: &Word,
                                          index_in_word: usize,
-                                         word_across: bool) -> (bool, Location) {
+                                         word_direction: Direction) -> (bool, Location) {
         let mut success: bool;
         let cells_before_root = - (index_in_word as isize);
         let cells_after_root = (word.word_text.len() as isize) - (index_in_word as isize + 1);
-        let start_location = location.relative_location_directed(cells_before_root, word_across);
-        let end_location: Location = location.relative_location_directed(cells_after_root, word_across);
-        self.expand_to_fit_cell(start_location.relative_location_directed(-1, word_across));
-        self.expand_to_fit_cell(end_location.relative_location_directed(1, word_across));
+        let start_location = location.relative_location_directed(cells_before_root, word_direction);
+        let end_location: Location = location.relative_location_directed(cells_after_root, word_direction);
+        self.expand_to_fit_cell(start_location.relative_location_directed(-1, word_direction));
+        self.expand_to_fit_cell(end_location.relative_location_directed(1, word_direction));
 
-        let before_start = start_location.relative_location_directed(-1, word_across);
+        let before_start = start_location.relative_location_directed(-1, word_direction);
         success = !self.cell_map.get(&before_start).unwrap().contains_letter();
         if !success {
             debug!("Cell before word not empty, failure! {:?}", before_start);
         } else {
-            let after_end = end_location.relative_location_directed(1, word_across);
+            let after_end = end_location.relative_location_directed(1, word_direction);
             success = !self.cell_map.get(&after_end).unwrap().contains_letter();
             if !success {
                 debug!("Cell after word not empty, failure! {:?}", after_end);
@@ -149,16 +148,15 @@ impl CrosswordGrid {
                         letter: char,
                         word_id: usize,
                         working_location: &Location,
-                        word_across: bool) -> bool {
+                        word_direction: Direction) -> bool {
         debug!("Trying to add letter {} to cell location {:?}", letter, working_location);
         let cell = self.cell_map.get_mut(&working_location).unwrap();
-        let mut success = cell.add_word(word_id, letter, word_across);
+        let mut success = cell.add_word(word_id, letter, word_direction);
         debug!("Success adding letter: {}", success);
 
-        let perpendicular_word_id: Option<usize> = if word_across {
-            cell.get_down_word_id()
-        } else {
-            cell.get_across_word_id()
+        let perpendicular_word_id: Option<usize> = match word_direction.rotate() {
+            Direction::Across => cell.get_across_word_id(),
+            Direction::Down => cell.get_down_word_id(),
         };
         debug!("Cell has perpendicular id {:?}", perpendicular_word_id);
 
@@ -166,11 +164,11 @@ impl CrosswordGrid {
         // the current cell (if we are placing an across word, an adjacent filled cell should
         // share down word id and vice versa).
         if success {
-            success = !self.adjacent_word_ids_mismatch(&working_location, -1, word_across, perpendicular_word_id);
+            success = !self.adjacent_word_ids_mismatch(&working_location, -1, word_direction, perpendicular_word_id);
             debug!("Checked adjacent cell empty or matches perpendicular word: {}", success);
         }
         if success {
-            success = !self.adjacent_word_ids_mismatch(&working_location, 1, word_across, perpendicular_word_id);
+            success = !self.adjacent_word_ids_mismatch(&working_location, 1, word_direction, perpendicular_word_id);
             debug!("Checked adjacent cell empty or matches perpendicular word: {}", success);
         }
 
@@ -181,19 +179,19 @@ impl CrosswordGrid {
                                   location: Location,
                                   word_id: usize,
                                   index_in_word: usize,
-                                  word_across: bool) -> bool {
+                                  word_direction: Direction) -> bool {
         self.fit_to_size();
         self.fill_black_cells();
 
         let mut success: bool;
         let word = self.word_map.get(&word_id).unwrap().clone();
-        info!("Attempting to add word to location: {:?} word_across: {} index: {} word: {:?}",
-               location, word_across, index_in_word, word);
+        info!("Attempting to add word to location: {:?} word_direction: {:?} index: {} word: {:?}",
+               location, word_direction, index_in_word, word);
         assert!(!word.is_placed());
-        if self.cell_is_open(location, word_across) {
+        if self.cell_is_open(location, word_direction) {
             // Check that the spaces at either end of the word are free, and calculate the
             // first cell where we should start placing letters
-            let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, word_across);
+            let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, word_direction);
             success = ends_free;
 
             let mut updated_locations: Vec<Location> = vec![];
@@ -201,16 +199,16 @@ impl CrosswordGrid {
             let mut working_location = start_location.clone();
             for letter in word.word_text.chars() {
                 if success {
-                    success = self.try_place_letter(letter, word_id, &working_location, word_across);
+                    success = self.try_place_letter(letter, word_id, &working_location, word_direction);
 
                     updated_locations.push(working_location);
-                    working_location = working_location.relative_location_directed(1, word_across);
+                    working_location = working_location.relative_location_directed(1, word_direction);
                 }
             }
 
             // If we have failed, undo anything we did i.e. remove word from cells
             if success {
-                self.word_map.insert(word_id, Word::new(&word.word_text, start_location, word_across));
+                self.word_map.insert(word_id, Word::new(&word.word_text, start_location, word_direction));
             } else {
                 for updated_location in updated_locations {
                     let cell = self.cell_map.get_mut(&updated_location).unwrap();
@@ -312,25 +310,25 @@ mod tests {
         grid.check_valid();
         debug!("{:#?}", grid);
 
-        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, Direction::Down));
         grid.check_valid();
-        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, Direction::Down));
         grid.check_valid();
-        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, false));
+        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, Direction::Down));
         grid.check_valid();
 
         let before_failure = grid.to_string();
-        assert!(!grid.try_place_word_in_cell(Location(0, 3), innards_word_id, 1, false));
+        assert!(!grid.try_place_word_in_cell(Location(0, 3), innards_word_id, 1, Direction::Down));
         grid.check_valid();
         assert_eq!(before_failure, grid.to_string());
 
-        assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, true));
+        assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, Direction::Across));
         grid.check_valid();
         assert_eq!(before_failure, grid.to_string());
         info!("{}", grid.to_string());
 
         debug!("{:#?}", grid);
-        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, true));
+        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, Direction::Across));
         grid.check_valid();
 
         let mut from_file = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
@@ -345,6 +343,6 @@ mod tests {
         let mut grid = CrosswordGridBuilder::new().from_file("tests/resources/bear_button.txt");
         let button_word_id = grid.add_unplaced_word("BUTTON");
         grid.check_valid();
-        assert!(!grid.try_place_word_in_cell(Location(3, 5), button_word_id, 2, true));
+        assert!(!grid.try_place_word_in_cell(Location(3, 5), button_word_id, 2, Direction::Across));
     }
 }

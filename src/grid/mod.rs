@@ -20,6 +20,21 @@ pub use pdf_conversion::CrosswordPrinter;
 
 static VALIDCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Ord,PartialOrd,Hash)]
+pub enum Direction {
+    Across,
+    Down,
+}
+
+impl Direction {
+    fn rotate(&self) -> Self {
+        match self {
+            Direction::Across => Direction::Down,
+            Direction::Down => Direction::Across,
+        }
+    }
+}
+
 #[derive(Clone,Copy,Eq,Hash)]
 pub struct Location(pub isize, pub isize);
 
@@ -40,11 +55,10 @@ impl Location {
         Location(self.0 + move_across, self.1 + move_down)
     }
 
-    fn relative_location_directed(&self, move_size: isize, to_col: bool) -> Location {
-        if to_col {
-            Location(self.0, self.1 + move_size)
-        } else {
-            Location(self.0 + move_size, self.1)
+    fn relative_location_directed(&self, move_size: isize, direction: Direction) -> Location {
+        match direction {
+            Direction::Across => Location(self.0, self.1 + move_size),
+            Direction::Down => Location(self.0 + move_size, self.1),
         }
     }
 }

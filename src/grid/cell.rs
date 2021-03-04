@@ -1,6 +1,8 @@
 use log::{info,warn};
 use std::fmt;
 
+use super::Direction;
+
 #[derive(Clone,Copy,Debug)]
 enum FillStatus {
     Filled(FilledCell),
@@ -89,15 +91,14 @@ impl Cell {
         }
     }
 
-    pub fn add_word(&mut self, word_id: usize, letter: char, across: bool) -> bool {
+    pub fn add_word(&mut self, word_id: usize, letter: char, direction: Direction) -> bool {
         let mut success = true;
 
         let mut across_word_id: Option<usize> = None;
         let mut down_word_id: Option<usize> = None;
-        if across {
-            across_word_id = Some(word_id);
-        } else {
-            down_word_id = Some(word_id);
+        match direction {
+            Direction::Across => { across_word_id = Some(word_id); },
+            Direction::Down => { down_word_id = Some(word_id); },
         }
 
         match self.fill_status {
@@ -105,23 +106,26 @@ impl Cell {
                 let existing_across = filled_cell.across_word_id;
                 let existing_down = filled_cell.down_word_id;
 
-                if across {
-                    // We are updating across word id, so can happily keep the existing down word id
-                    down_word_id = existing_down;
-                    if existing_across.is_some() && existing_across != across_word_id {
-                        // Existing ID this is a problem if the new id doesn't match the old ID
-                        warn!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
-                        success = false
-                    }
-                } else {
-                    // We are updating down word id, so can happily keep the existing across word id
-                    across_word_id = existing_across;
+                match direction {
+                    Direction::Across => {
+                        // We are updating across word id, so can happily keep the existing down word id
+                        down_word_id = existing_down;
+                        if existing_across.is_some() && existing_across != across_word_id {
+                            // Existing ID this is a problem if the new id doesn't match the old ID
+                            warn!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
+                            success = false
+                        }
+                    },
+                    Direction::Down => {
+                        // We are updating down word id, so can happily keep the existing across word id
+                        across_word_id = existing_across;
 
-                    if existing_down.is_some() && existing_down != down_word_id {
-                        // Existing ID this is a problem if the new id doesn't match the old ID
-                        warn!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
-                        success = false
-                    }
+                        if existing_down.is_some() && existing_down != down_word_id {
+                            // Existing ID this is a problem if the new id doesn't match the old ID
+                            warn!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
+                            success = false
+                        }
+                    },
                 }
 
                 if filled_cell.letter != letter {

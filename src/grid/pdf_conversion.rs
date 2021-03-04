@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
-use super::Word;
 
 static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage[unboxed]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3}\n\\begin{document}\n";
 static DOCUMENT_END: &str = "\n\n\\end{document}";
