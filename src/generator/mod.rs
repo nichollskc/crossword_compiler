@@ -58,7 +58,7 @@ impl CrosswordGridScore {
         let double_counted_filled: f64 = filled_cells + num_intersections;
         let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
 
-        let summary: f64 = (non_square_penalty as f64) * (settings.weight_non_square as f64)
+        let summary: f64 = - (non_square_penalty as f64) * (settings.weight_non_square as f64)
                 + proportion_filled * (settings.weight_prop_filled as f64)
                 + proportion_intersections * (settings.weight_prop_intersect as f64)
                 + num_cycles * (settings.weight_num_cycles as f64)
@@ -143,12 +143,12 @@ impl CrosswordGeneratorSettings {
             num_children: *settings.get("num-children").unwrap_or(&10),
             num_per_generation: *settings.get("num-per-gen").unwrap_or(&20),
             max_rounds: *settings.get("max-rounds").unwrap_or(&20),
-            weight_non_square: *settings.get("weight-non-square").unwrap_or(&100),
-            weight_prop_filled: *settings.get("weight-prop-filled").unwrap_or(&100),
-            weight_prop_intersect: *settings.get("weight-prop-intersect").unwrap_or(&100),
+            weight_non_square: *settings.get("weight-non-square").unwrap_or(&2),
+            weight_prop_filled: *settings.get("weight-prop-filled").unwrap_or(&10),
+            weight_prop_intersect: *settings.get("weight-prop-intersect").unwrap_or(&500),
             weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&100),
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
-            weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&100),
+            weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
             move_types: generate_move_types_vec(10, 1),
         }
     }
@@ -156,8 +156,10 @@ impl CrosswordGeneratorSettings {
 
 #[derive(Debug)]
 pub struct CrosswordGenerator {
-    current_generation: Vec<CrosswordGridAttempt>,
-    next_generation: Vec<CrosswordGridAttempt>,
+    current_generation_complete: Vec<CrosswordGridAttempt>,
+    next_generation_complete: Vec<CrosswordGridAttempt>,
+    current_generation_ancestors: Vec<CrosswordGridAttempt>,
+    next_generation_ancestors: Vec<CrosswordGridAttempt>,
     round: usize,
     pub settings: CrosswordGeneratorSettings,
 }
@@ -185,15 +187,17 @@ impl CrosswordGenerator {
         info!("First of first generation is {}", singletons[0].grid.to_string());
 
         CrosswordGenerator {
-            current_generation: singletons,
-            next_generation: vec![],
+            current_generation_ancestors: singletons,
+            current_generation_complete: vec![],
+            next_generation_ancestors: vec![],
+            next_generation_complete: vec![],
             round: 0,
             settings,
         }
     }
 
     fn choose_random_move_type(&self, seed: u64) -> MoveType {
-        let mut rng = StdRng::seed_from_u64(self.settings.seed + seed);
+        let mut rng = StdRng::seed_from_u64(self.settings.seed.wrapping_add(seed));
         *self.settings.move_types.choose(&mut rng).unwrap()
     }
 
@@ -218,24 +222,45 @@ impl CrosswordGenerator {
         CrosswordGridAttempt::new(copied, &self.settings)
     }
 
+    fn fill_grid(&self, grid_attempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
+        let mut copied = grid_attempt.grid.clone();
+        let mut moves = 0;
+        let mut success = true;
+        while success {
+            let extended_seed: u64 = seed + moves as u64;
+            success = copied.place_random_word(extended_seed);
+            moves += 1;
+        }
+        CrosswordGridAttempt::new(copied, &self.settings)
+    }
+
     fn next_generation(&mut self) {
-        for grid_attempt in self.current_generation.iter() {
+        info!("START. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
+        for grid_attempt in self.current_generation_ancestors.iter().chain(self.current_generation_complete.iter()) {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
             let seed = grid_attempt.summary_score as u64;
             for child_index in 0..self.settings.num_children {
                 let child = self.produce_child(&grid_attempt, seed + child_index as u64);
-                self.next_generation.push(child);
+                self.next_generation_ancestors.push(child);
             }
         }
+        info!("GENERATED ANCESTORS. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
 
         // Clear current generation, but add them to the next generation in case they
         // actually score better
-        self.next_generation.append(&mut self.current_generation);
+        self.next_generation_ancestors.append(&mut self.current_generation_ancestors);
+        info!("APPENDED OLD ANCESTORS. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
 
         let mut unique_children_hashes: HashSet<String> = HashSet::new();
         let mut unique_children: Vec<CrosswordGridAttempt> = vec![];
 
-        for child in self.next_generation.drain(..) {
+        for child in self.next_generation_ancestors.drain(..) {
             let is_new_child = unique_children_hashes.insert(child.grid.to_string());
             if is_new_child {
                 unique_children.push(child);
@@ -245,31 +270,74 @@ impl CrosswordGenerator {
         unique_children.sort_by(|a, b| b.ancestor_summary_score.cmp(&a.ancestor_summary_score));
 
         for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
+            let seed = grid_attempt.summary_score as u64;
+
+            for child_index in 0..self.settings.num_children {
+                let child = self.fill_grid(&grid_attempt, seed + child_index as u64);
+                self.next_generation_complete.push(child);
+            }
+
             debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
-            self.current_generation.push(grid_attempt);
+            self.current_generation_ancestors.push(grid_attempt);
         }
+        info!("MADE ANCESTORS COMPLETE. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
+
+        // Clear current generation, but add them to the next generation in case they
+        // actually score better
+        self.next_generation_complete.append(&mut self.current_generation_complete);
+        info!("EXTENDED COMPLETE. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
+
+        let mut unique_children_hashes: HashSet<String> = HashSet::new();
+        let mut unique_children: Vec<CrosswordGridAttempt> = vec![];
+
+        for child in self.next_generation_complete.drain(..) {
+            let is_new_child = unique_children_hashes.insert(child.grid.to_string());
+            if is_new_child {
+                unique_children.push(child);
+            }
+        }
+        info!("DRAINED COMPLETE. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
+
+        unique_children.sort_by(|a, b| b.summary_score.cmp(&a.summary_score));
+
+        for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
+            debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
+            self.current_generation_complete.push(grid_attempt);
+        }
+        info!("UPDATED CURRENT COMPLETE. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
+              self.current_generation_ancestors.len(), self.current_generation_complete.len(),
+              self.next_generation_ancestors.len(), self.next_generation_complete.len());
     }
 
     fn output_best(&self, num_to_output: usize) -> Vec<CrosswordGrid> {
         let mut output: Vec<CrosswordGrid> = vec![];
-        for grid_attempt in self.current_generation.iter().take(num_to_output) {
+        for grid_attempt in self.current_generation_complete.iter().take(num_to_output) {
             output.push(grid_attempt.grid.clone());
         }
         output
     }
 
     fn get_current_best_score(&self) -> isize {
-        self.current_generation.iter().map(|x| x.ancestor_summary_score).max().unwrap_or(0)
+        self.current_generation_complete.iter().map(|x| x.summary_score).max().unwrap_or(0)
     }
 
     fn get_average_scores(&self) -> CrosswordGridScore {
-        CrosswordGridScore::average_scores(self.current_generation.iter().map(|x| x.score).collect())
+        if self.current_generation_complete.len() > 0 {
+            CrosswordGridScore::average_scores(self.current_generation_complete.iter().map(|x| x.score).collect())
+        } else {
+            panic!("Called when no results!");
+        }
     }
 
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
-        let mut best_score_ever: isize = 0;
+        let mut best_score_ever: isize = -1;
         let mut best_score: isize = self.get_current_best_score();
-        info!("Round {}. Average score is {}", self.round, self.get_average_scores());
         info!("Round {}. Current best score is {:?}", self.round, best_score);
 
         while best_score > best_score_ever && self.round < self.settings.max_rounds {
