@@ -5,15 +5,15 @@ generate:
     input-file: tests/resources/fifteensquared/quiptic-1109-by-pan.txt
     num-per-gen: 20
     seed: 13
-    moves-between-scores: 4
-    num-children: 10
+    moves-between-scores: 5
+    num-children: 30
     max-rounds: 20
-    weight-non-square: 100
-    weight-prop-filled: 100
-    weight-prop-intersect: 100
+    weight-non-square: 2
+    weight-prop-filled: 10
+    weight-prop-intersect: 500
     weight-num-cycles: 100
     weight-num-intersect: 100
-    weight-words-placed: 100
+    weight-words-placed: 10
   sourcecode:
     - '*.rs'
   requires:

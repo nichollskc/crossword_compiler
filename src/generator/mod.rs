@@ -140,7 +140,7 @@ impl CrosswordGeneratorSettings {
         CrosswordGeneratorSettings {
             seed: *settings.get("seed").unwrap_or(&13) as u64,
             moves_between_scores: *settings.get("moves-between-scores").unwrap_or(&4),
-            num_children: *settings.get("num-children").unwrap_or(&10),
+            num_children: *settings.get("num-children").unwrap_or(&30),
             num_per_generation: *settings.get("num-per-gen").unwrap_or(&20),
             max_rounds: *settings.get("max-rounds").unwrap_or(&20),
             weight_non_square: *settings.get("weight-non-square").unwrap_or(&2),
@@ -149,7 +149,7 @@ impl CrosswordGeneratorSettings {
             weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&100),
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
             weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
-            move_types: generate_move_types_vec(10, 1),
+            move_types: generate_move_types_vec(3, 1),
         }
     }
 }
