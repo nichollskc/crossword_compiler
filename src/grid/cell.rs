@@ -1,4 +1,4 @@
-use log::{info,warn};
+use log::{debug,info,warn};
 use std::fmt;
 
 use super::Direction;
@@ -129,7 +129,7 @@ impl Cell {
                 }
 
                 if filled_cell.letter != letter {
-                    info!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
+                    debug!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
                     success = false;
                 }
             },

@@ -9,6 +9,8 @@ use rand::rngs::StdRng;
 
 use crate::grid::CrosswordGrid;
 
+mod stats;
+
 #[derive(Clone,Copy,Debug)]
 enum MoveType {
     PlaceWord,
@@ -27,7 +29,7 @@ fn generate_move_types_vec(place_word_weight: usize, prune_leaves_weight: usize)
     move_types
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 struct CrosswordGridScore {
     total_cells: f64,
     non_square_penalty: f64,
@@ -74,9 +76,9 @@ impl CrosswordGridScore {
 
 impl fmt::Display for CrosswordGridScore {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "GridScore[ summary: {:.3} total_cells: {:.0} filled_cells: {:.0} \
-               non_square_penalty: {:.0} proportion_filled: {:.3} proportion_intersections: {:.3} \
-               words_placed: {:.0} words_unplaced: {:.0} num_cycles: {:.0} num_intersections: {:.0}]",
+        write!(f, "GridScore[ summary:: {:.3} total_cells:: {:.0} filled_cells:: {:.0} \
+               non_square_penalty:: {:.0} proportion_filled:: {:.3} proportion_intersections:: {:.3} \
+               words_placed:: {:.0} words_unplaced:: {:.0} num_cycles:: {:.0} num_intersections:: {:.0}]",
                self.summary, self.total_cells, self.filled_cells,
                self.non_square_penalty, self.proportion_filled, self.proportion_intersections,
                self.words_placed, self.words_unplaced, self.num_cycles, self.num_intersections)
@@ -252,9 +254,14 @@ impl CrosswordGenerator {
         self.current_generation.iter().map(|x| x.summary_score).max().unwrap_or(0)
     }
 
+    fn get_average_scores(&self) -> CrosswordGridScore {
+        CrosswordGridScore::average_scores(self.current_generation.iter().map(|x| x.score).collect())
+    }
+
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
         let mut best_score_ever: isize = 0;
         let mut best_score: isize = self.get_current_best_score();
+        info!("Round {}. Average score is {}", self.round, self.get_average_scores());
         info!("Round {}. Current best score is {:?}", self.round, best_score);
 
         while best_score > best_score_ever && self.round < self.settings.max_rounds {
@@ -262,6 +269,7 @@ impl CrosswordGenerator {
 
             self.next_generation();
             best_score = self.get_current_best_score();
+            info!("Round {}. Average score is {}", self.round, self.get_average_scores());
             info!("Round {}. Current best score is {:?}", self.round, best_score);
 
             self.round += 1;

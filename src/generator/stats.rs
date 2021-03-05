@@ -7,8 +7,8 @@ fn mean(values: &Vec<f64>) -> f64 {
 use super::CrosswordGridScore;
 
 impl CrosswordGridScore {
-    fn average_scores(scores: Vec<Self>) -> Self {
-        let hashmaps: Vec<HashMap<String, f64>> = scores.iter().map(to_hashmap).collect();
+    pub fn average_scores(scores: Vec<Self>) -> Self {
+        let hashmaps: Vec<HashMap<String, f64>> = scores.iter().map(CrosswordGridScore::to_hashmap).collect();
         let mut means: HashMap<String, f64> = HashMap::new();
 
         for key in hashmaps[0].keys() {
@@ -21,7 +21,6 @@ impl CrosswordGridScore {
 
     fn to_hashmap(&self) -> HashMap<String, f64> {
         let v = serde_json::to_value(self).unwrap();
-        println!("{}", v);
         serde_json::from_value(v).unwrap()
     }
 }

@@ -22,6 +22,8 @@ fn main() {
         .author("Kath Nicholls")
         .about("Generates a crossword from a set of clues and answers")
         .arg(Arg::with_name("CLUE_FILE")
+                .long("input-file")
+                .takes_value(true)
                 .required(true))
         .args(&setting_args)
         .get_matches();

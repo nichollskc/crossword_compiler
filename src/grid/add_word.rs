@@ -185,7 +185,7 @@ impl CrosswordGrid {
 
         let mut success: bool;
         let mut word = self.word_map.get(&word_id).unwrap().clone();
-        info!("Attempting to add word to location: {:?} word_direction: {:?} index: {} word: {:?}",
+        debug!("Attempting to add word to location: {:?} word_direction: {:?} index: {} word: {:?}",
                location, word_direction, index_in_word, word);
         assert!(!word.is_placed());
         if !word.allowed_in_direction(word_direction) {

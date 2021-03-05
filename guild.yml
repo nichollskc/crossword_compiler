@@ -1,7 +1,8 @@
 generate:
   description: Generate crosswords
-  exec: /Users/kath/docs/Programming/rust/crossword/target/release/crossword tests/resources/input_with_clues.txt ${flag_args}
+  exec: /Users/kath/docs/Programming/rust/crossword/target/release/crossword ${flag_args}
   flags:
+    input-file: tests/resources/fifteensquared/quiptic-1109-by-pan.txt
     num-per-gen: 20
     seed: 13
     moves-between-scores: 4
@@ -10,5 +11,17 @@ generate:
   sourcecode:
     - '*.rs'
   requires:
-    - file: tests/resources/input_with_clues.txt
-      target-path: tests/resources
+    - file: tests/resources/
+      target-path: tests/
+  output-scalars:
+    - 'Round (?P<step>\step)'
+    - '(\key):: (\value)'
+
+random_search:
+  description: Random search in crossword generation space
+  steps:
+    - run: generate
+      flags:
+        num-per-gen: [5,8,10,12,15,20,25,30]
+        moves-between-scores: range[1:6]
+        num-children: [5,10,15,20]
