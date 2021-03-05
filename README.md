@@ -4,11 +4,8 @@ Tool to fit a list of words into a crossword grid. It uses a genetic algorithm t
 
 # Todo
 
-- Scoring function flaky - I don't seem to have got it quite right yet. Perhaps I should give explicit examples e.g. this grid should score better than that grid.
-- Adjust scoring function during iterations? E.g. start with focus on cycles, square etc. but gradually increase focus on number of words placed
-- Allow adjustment of scoring function e.g. weights
-- Final output step to fill in as many words as possible in the grid
 - Add code to remove words as well. Probably by splitting grid into connected components.
+- Don't stop as soon as score hasn't improved - wait e.g. 2 rounds of no increase
 
 # Web app
 
@@ -20,3 +17,7 @@ Tool to fit a list of words into a crossword grid. It uses a genetic algorithm t
 - Display previews of pdf files
 - Robust parsing - make sure contents is clean e.g. no extra latex commands
 - Host on pythonanywhere - I've set up an account pedigreecrosswords
+-
+guild run generate num-per-gen=[5,10,15,20,25,30] moves-between-scores=[1,2,3,4,5,6] num-children=[5,10,15,20] weight-non-square=[1,5,10,50,100,500,1000] weight-prop-filled=[1,5,10,50,100,500,1000] weight-prop-intersect=[1,5,10,50,100,500,1000] weight-num-cycles=[1,5,10,50,100,500,1000] weight-num-intersect=[1,5,10,50,100,500,1000] weight-words-placed=[1,5,10,50,100,500,1000] -o random --max-trials 100
+
+96af330691054635b86a7127aba35e8d looks good

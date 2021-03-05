@@ -335,22 +335,34 @@ impl CrosswordGenerator {
         }
     }
 
+    fn stringified_output(&self) -> String {
+        let mut stringified: String = String::from("");
+        for grid_attempt in self.current_generation_ancestors.iter().chain(self.current_generation_complete.iter()) {
+            stringified.push_str(&grid_attempt.grid.to_string());
+            stringified.push_str("\n\n");
+        }
+        stringified
+    }
+
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
-        let mut best_score_ever: isize = -1;
         let mut best_score: isize = self.get_current_best_score();
+        let mut reached_convergence: bool = false;
+        let mut last_generation_stringified = self.stringified_output();
         info!("Round {}. Current best score is {:?}", self.round, best_score);
 
-        while best_score > best_score_ever && self.round < self.settings.max_rounds {
-            best_score_ever = best_score;
-
+        while !reached_convergence && self.round < self.settings.max_rounds {
             self.next_generation();
             best_score = self.get_current_best_score();
             info!("Round {}. Average score is {}", self.round, self.get_average_scores());
             info!("Round {}. Current best score is {:?}", self.round, best_score);
 
             self.round += 1;
+            let this_generation_stringified = self.stringified_output();
+            info!("This generation:\n{}", this_generation_stringified);
+            reached_convergence = this_generation_stringified == last_generation_stringified;
+            last_generation_stringified = this_generation_stringified;
         }
-        if best_score <= best_score_ever {
+        if reached_convergence {
             info!("Stopped iterating since we stopped increasing our score");
         }
 
