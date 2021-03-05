@@ -1,0 +1,14 @@
+generate:
+  description: Generate crosswords
+  exec: /Users/kath/docs/Programming/rust/crossword/target/release/crossword tests/resources/input_with_clues.txt ${flag_args}
+  flags:
+    num-per-gen: 20
+    seed: 13
+    moves-between-scores: 4
+    num-children: 10
+    max-rounds: 20
+  sourcecode:
+    - '*.rs'
+  requires:
+    - file: tests/resources/input_with_clues.txt
+      target-path: tests/resources
