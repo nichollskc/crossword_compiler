@@ -40,11 +40,12 @@ struct CrosswordGridScore {
     filled_cells: f64,
     num_cycles: f64,
     num_intersections: f64,
+    ancestor_summary: f64,
     summary: f64,
 }
 
 impl CrosswordGridScore {
-    fn new(grid: &CrosswordGrid) -> Self {
+    fn new(grid: &CrosswordGrid, settings: &CrosswordGeneratorSettings) -> Self {
         let (nrows, ncols) = grid.get_grid_dimensions();
         let total_cells = nrows * ncols;
         let non_square_penalty: usize = cmp::max(nrows, ncols).pow(2) - total_cells;
@@ -57,8 +58,12 @@ impl CrosswordGridScore {
         let double_counted_filled: f64 = filled_cells + num_intersections;
         let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
 
-        let float_score: f64 = words_placed * 100.0 + proportion_filled * 20.0 + proportion_intersections * 100.0 - (non_square_penalty as f64) * 5.0 + 1000.0 * num_cycles;
-        let summary = float_score * 100.0;
+        let summary: f64 = (non_square_penalty as f64) * (settings.weight_non_square as f64)
+                + proportion_filled * (settings.weight_prop_filled as f64)
+                + proportion_intersections * (settings.weight_prop_intersect as f64)
+                + num_cycles * (settings.weight_num_cycles as f64)
+                + num_intersections * (settings.weight_num_intersect as f64);
+        let ancestor_summary: f64 = summary + words_placed * (settings.weight_words_placed as f64);
         CrosswordGridScore {
             total_cells: total_cells as f64,
             non_square_penalty: non_square_penalty as f64,
@@ -69,6 +74,7 @@ impl CrosswordGridScore {
             filled_cells,
             num_cycles,
             num_intersections,
+            ancestor_summary,
             summary,
         }
     }
@@ -90,20 +96,22 @@ struct CrosswordGridAttempt {
     grid: CrosswordGrid,
     score: CrosswordGridScore,
     summary_score: isize,
+    ancestor_summary_score: isize,
 }
 
 impl CrosswordGridAttempt {
-    fn new(grid: CrosswordGrid) -> Self {
-        let score = CrosswordGridAttempt::score_grid(&grid);
+    fn new(grid: CrosswordGrid, settings: &CrosswordGeneratorSettings) -> Self {
+        let score = CrosswordGridAttempt::score_grid(&grid, settings);
         CrosswordGridAttempt {
             summary_score: score.summary as isize,
+            ancestor_summary_score: score.ancestor_summary as isize,
             score,
             grid,
         }
     }
 
-    fn score_grid(grid: &CrosswordGrid) -> CrosswordGridScore {
-        CrosswordGridScore::new(grid)
+    fn score_grid(grid: &CrosswordGrid, settings: &CrosswordGeneratorSettings) -> CrosswordGridScore {
+        CrosswordGridScore::new(grid, settings)
     }
 }
 
@@ -115,6 +123,12 @@ pub struct CrosswordGeneratorSettings {
     num_per_generation: usize,
     max_rounds: usize,
     move_types: Vec<MoveType>,
+    weight_non_square: usize,
+    weight_prop_filled: usize,
+    weight_prop_intersect: usize,
+    weight_num_cycles: usize,
+    weight_num_intersect: usize,
+    weight_words_placed: usize,
 }
 
 impl CrosswordGeneratorSettings {
@@ -122,27 +136,21 @@ impl CrosswordGeneratorSettings {
         CrosswordGeneratorSettings::new_from_hashmap(HashMap::new())
     }
 
-    pub fn new(seed: u64,
-           moves_between_scores: usize,
-           num_children: usize,
-           num_per_generation: usize,
-           max_rounds: usize) -> Self {
+    pub fn new_from_hashmap(settings: HashMap<&str, usize>) -> Self {
         CrosswordGeneratorSettings {
-            moves_between_scores,
-            num_per_generation,
-            num_children,
-            max_rounds,
-            seed,
+            seed: *settings.get("seed").unwrap_or(&13) as u64,
+            moves_between_scores: *settings.get("moves-between-scores").unwrap_or(&4),
+            num_children: *settings.get("num-children").unwrap_or(&10),
+            num_per_generation: *settings.get("num-per-gen").unwrap_or(&20),
+            max_rounds: *settings.get("max-rounds").unwrap_or(&20),
+            weight_non_square: *settings.get("weight-non-square").unwrap_or(&100),
+            weight_prop_filled: *settings.get("weight-prop-filled").unwrap_or(&100),
+            weight_prop_intersect: *settings.get("weight-prop-intersect").unwrap_or(&100),
+            weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&100),
+            weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
+            weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&100),
             move_types: generate_move_types_vec(10, 1),
         }
-    }
-
-    pub fn new_from_hashmap(settings: HashMap<&str, usize>) -> Self {
-        CrosswordGeneratorSettings::new(*settings.get("seed").unwrap_or(&13) as u64,
-                                        *settings.get("moves-between-scores").unwrap_or(&4),
-                                        *settings.get("num-children").unwrap_or(&10),
-                                        *settings.get("num-per-gen").unwrap_or(&20),
-                                        *settings.get("max-rounds").unwrap_or(&20))
     }
 }
 
@@ -171,7 +179,7 @@ impl CrosswordGenerator {
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
 
         for grid in CrosswordGrid::random_singleton_grids(words, settings.seed) {
-            singletons.push(CrosswordGridAttempt::new(grid));
+            singletons.push(CrosswordGridAttempt::new(grid, &settings));
         }
 
         info!("First of first generation is {}", singletons[0].grid.to_string());
@@ -207,7 +215,7 @@ impl CrosswordGenerator {
             }
             moves += 1;
         }
-        CrosswordGridAttempt::new(copied)
+        CrosswordGridAttempt::new(copied, &self.settings)
     }
 
     fn next_generation(&mut self) {
@@ -234,7 +242,7 @@ impl CrosswordGenerator {
             }
         }
 
-        unique_children.sort_by(|a, b| b.summary_score.cmp(&a.summary_score));
+        unique_children.sort_by(|a, b| b.ancestor_summary_score.cmp(&a.ancestor_summary_score));
 
         for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
             debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
@@ -251,7 +259,7 @@ impl CrosswordGenerator {
     }
 
     fn get_current_best_score(&self) -> isize {
-        self.current_generation.iter().map(|x| x.summary_score).max().unwrap_or(0)
+        self.current_generation.iter().map(|x| x.ancestor_summary_score).max().unwrap_or(0)
     }
 
     fn get_average_scores(&self) -> CrosswordGridScore {

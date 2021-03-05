@@ -8,6 +8,12 @@ generate:
     moves-between-scores: 4
     num-children: 10
     max-rounds: 20
+    weight-non-square: 100
+    weight-prop-filled: 100
+    weight-prop-intersect: 100
+    weight-num-cycles: 100
+    weight-num-intersect: 100
+    weight-words-placed: 100
   sourcecode:
     - '*.rs'
   requires:
@@ -16,12 +22,3 @@ generate:
   output-scalars:
     - 'Round (?P<step>\step)'
     - '(\key):: (\value)'
-
-random_search:
-  description: Random search in crossword generation space
-  steps:
-    - run: generate
-      flags:
-        num-per-gen: [5,8,10,12,15,20,25,30]
-        moves-between-scores: range[1:6]
-        num-children: [5,10,15,20]

@@ -60,15 +60,18 @@ fn test_generator() {
 #[test]
 fn test_generator_fifteen_squared() {
     crossword::logging::init_logger(true);
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
-    generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
+    let mut settings_map = HashMap::new();
+    settings_map.insert("num-children", 2);
+    settings_map.insert("num-per-gen", 5);
+    settings_map.insert("max-rounds", 5);
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt", settings_map.clone());
+
     let results = generator.generate();
     for grid in results.iter() {
         debug!("{}", grid.to_string());
     }
 
-    let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
-    generator2.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
+    let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt", settings_map);
     let results2 = generator2.generate();
 
     for grid in results2.iter() {
@@ -87,8 +90,12 @@ fn test_generator_fifteen_squared() {
 fn test_generator_fifteen_squared_branching() {
     crossword::logging::init_logger(true);
     info!("Starting branching generator");
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
-    generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 30, 2, 100, 1);
+    let mut settings_map = HashMap::new();
+    settings_map.insert("moves-between-scores", 30);
+    settings_map.insert("num-children", 3);
+    settings_map.insert("num-per-gen", 100);
+    settings_map.insert("max-rounds", 1);
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt", settings_map);
     let results = generator.generate();
     for grid in results.iter() {
         debug!("{}", grid.to_string());
