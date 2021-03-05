@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap,HashSet};
 use std::fs;
 use std::cmp;
 use log::{info,debug};
@@ -72,14 +72,7 @@ pub struct CrosswordGeneratorSettings {
 
 impl CrosswordGeneratorSettings {
     pub fn default() -> Self {
-        CrosswordGeneratorSettings {
-            moves_between_scores: 4,
-            num_per_generation: 20,
-            num_children: 10,
-            max_rounds: 20,
-            seed: 13,
-            move_types: generate_move_types_vec(10, 1),
-        }
+        CrosswordGeneratorSettings::new_from_hashmap(HashMap::new())
     }
 
     pub fn new(seed: u64,
@@ -95,6 +88,14 @@ impl CrosswordGeneratorSettings {
             seed,
             move_types: generate_move_types_vec(10, 1),
         }
+    }
+
+    pub fn new_from_hashmap(settings: HashMap<&str, usize>) -> Self {
+        CrosswordGeneratorSettings::new(*settings.get("seed").unwrap_or(&13) as u64,
+                                        *settings.get("moves-between-scores").unwrap_or(&4),
+                                        *settings.get("num-children").unwrap_or(&10),
+                                        *settings.get("num-per-gen").unwrap_or(&20),
+                                        *settings.get("max-rounds").unwrap_or(&20))
     }
 }
 
