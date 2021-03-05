@@ -112,14 +112,14 @@ impl CrosswordGenerator {
         CrosswordGenerator::new_from_file(filename, HashMap::new())
     }
 
-    pub fn new_from_file(filename: &str, settings: HashMap<&str, usize>) -> Self {
+    pub fn new_from_file(filename: &str, settings_map: HashMap<&str, usize>) -> Self {
         let contents = fs::read_to_string(filename).unwrap();
         let words: Vec<&str> = contents.split('\n').collect();
-        CrosswordGenerator::new_from_singletons(words)
+        CrosswordGenerator::new_from_singletons(words, settings_map)
     }
 
-    pub fn new_from_singletons(words: Vec<&str>) -> Self {
-        let settings = CrosswordGeneratorSettings::default();
+    pub fn new_from_singletons(words: Vec<&str>, settings_map: HashMap<&str, usize>) -> Self {
+        let settings = CrosswordGeneratorSettings::new_from_hashmap(settings_map);
 
         let mut singletons: Vec<CrosswordGridAttempt> = vec![];
 

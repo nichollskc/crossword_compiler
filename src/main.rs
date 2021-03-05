@@ -37,7 +37,12 @@ fn main() {
     }
     println!("{:?}", settings_map);
 
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file(matches.value_of("CLUE_FILE").unwrap(),
-    settings_map);
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file(matches.value_of("CLUE_FILE").unwrap(), settings_map);
 
+    let results = generator.generate();
+    for grid in results.iter() {
+        println!("{}", grid.to_string());
+        let mut printer = crossword::grid::CrosswordPrinter::new(grid.clone());
+//        printer.print_to_pdf("test");
+    }
 }
