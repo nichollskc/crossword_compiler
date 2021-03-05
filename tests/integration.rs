@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use log::{info,debug};
 use crossword;
 
@@ -52,7 +53,7 @@ fn add_random_words() {
 fn test_generator() {
     crossword::logging::init_logger(true);
     let words = vec!["BEARER", "ABOVE", "HERE", "INVALUABLE", "BANANA", "ROYAL", "AROUND", "ROE"];
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_singletons(words);
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_singletons(words, HashMap::new());
     generator.generate();
 }
 

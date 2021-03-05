@@ -9,6 +9,10 @@ impl CrosswordGrid {
         self.word_map.values().filter(|w| w.is_placed()).count()
     }
 
+    pub fn count_unplaced_words(&self) -> usize {
+        self.word_map.values().filter(|w| !w.is_placed()).count()
+    }
+
     pub fn count_intersections(&self) -> usize {
         let mut intersections: usize = 0;
         for cell in self.cell_map.values() {

@@ -1,6 +1,5 @@
 use std::collections::{HashMap,HashSet};
-use std::fs;
-use std::cmp;
+use std::{cmp,fs,fmt};
 use log::{info,debug};
 
 use rand::seq::SliceRandom;
@@ -27,36 +26,81 @@ fn generate_move_types_vec(place_word_weight: usize, prune_leaves_weight: usize)
     move_types
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct CrosswordGridScore {
+    total_cells: f64,
+    non_square_penalty: f64,
+    proportion_filled: f64,
+    proportion_intersections: f64,
+    words_placed: f64,
+    words_unplaced: f64,
+    filled_cells: f64,
+    num_cycles: f64,
+    num_intersections: f64,
+    summary: f64,
+}
+
+impl CrosswordGridScore {
+    fn new(grid: &CrosswordGrid) -> Self {
+        let (nrows, ncols) = grid.get_grid_dimensions();
+        let total_cells = nrows * ncols;
+        let non_square_penalty: usize = cmp::max(nrows, ncols).pow(2) - total_cells;
+        let filled_cells: f64 = (grid.count_filled_cells() as f64);
+        let proportion_filled: f64 = filled_cells / (total_cells as f64);
+        let words_placed: f64 = grid.count_placed_words() as f64;
+        let words_unplaced: f64 = grid.count_unplaced_words() as f64;
+        let num_cycles: f64 = grid.to_graph().count_cycles() as f64;
+        let num_intersections: f64 = grid.count_intersections() as f64;
+        let double_counted_filled: f64 = filled_cells + num_intersections;
+        let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
+
+        let float_score: f64 = words_placed * 100.0 + proportion_filled * 20.0 + proportion_intersections * 100.0 - (non_square_penalty as f64) * 5.0 + 1000.0 * num_cycles;
+        let summary = float_score * 100.0;
+        CrosswordGridScore {
+            total_cells: total_cells as f64,
+            non_square_penalty: non_square_penalty as f64,
+            proportion_filled,
+            proportion_intersections,
+            words_placed,
+            words_unplaced,
+            filled_cells,
+            num_cycles,
+            num_intersections,
+            summary,
+        }
+    }
+}
+
+impl fmt::Display for CrosswordGridScore {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "GridScore[ summary: {:.3} total_cells: {:.0} filled_cells: {:.0} \
+               non_square_penalty: {:.0} proportion_filled: {:.3} proportion_intersections: {:.3} \
+               words_placed: {:.0} words_unplaced: {:.0} num_cycles: {:.0} num_intersections: {:.0}]",
+               self.summary, self.total_cells, self.filled_cells,
+               self.non_square_penalty, self.proportion_filled, self.proportion_intersections,
+               self.words_placed, self.words_unplaced, self.num_cycles, self.num_intersections)
+    }
+}
+
 #[derive(Debug)]
 struct CrosswordGridAttempt {
     grid: CrosswordGrid,
-    score: isize,
+    score: CrosswordGridScore,
+    summary_score: isize,
 }
 
 impl CrosswordGridAttempt {
     fn new(grid: CrosswordGrid) -> Self {
+        let score = CrosswordGridAttempt::score_grid(&grid);
         CrosswordGridAttempt {
-            score: CrosswordGridAttempt::score_grid(&grid),
+            summary_score: score.summary as isize,
+            score,
             grid,
         }
     }
 
-    fn score_grid(grid: &CrosswordGrid) -> isize {
-        let (nrows, ncols) = grid.get_grid_dimensions();
-        let total_cells = nrows * ncols;
-        let nonsquare_penalty: usize = cmp::max(nrows, ncols).pow(2) - total_cells;
-        let proportion_filled: f64 = (grid.count_filled_cells() as f64) / (total_cells as f64);
-        let num_placed: f64 = grid.count_placed_words() as f64;
-        let num_cycles: f64 = grid.to_graph().count_cycles() as f64;
-        let num_intersections: f64 = grid.count_intersections() as f64;
-        let double_counted_filled: f64 = num_placed + num_intersections;
-        let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
-
-        let float_score: f64 = num_placed * 100.0 + proportion_filled * 20.0 + proportion_intersections * 100.0 - (nonsquare_penalty as f64) * 5.0 + 1000.0 * num_cycles;
-        let score = (float_score * 100.0) as isize;
-        info!("Score: {}, Num cycles: {}, Placed: {}, Prop filed: {}\n{}",
-              score, num_cycles, num_placed, proportion_filled, grid.to_string());
-        score
+    fn score_grid(grid: &CrosswordGrid) -> CrosswordGridScore {
+        CrosswordGridScore::new(grid)
     }
 }
 
@@ -166,7 +210,7 @@ impl CrosswordGenerator {
     fn next_generation(&mut self) {
         for grid_attempt in self.current_generation.iter() {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
-            let seed = grid_attempt.score as u64;
+            let seed = grid_attempt.summary_score as u64;
             for child_index in 0..self.settings.num_children {
                 let child = self.produce_child(&grid_attempt, seed + child_index as u64);
                 self.next_generation.push(child);
@@ -187,10 +231,10 @@ impl CrosswordGenerator {
             }
         }
 
-        unique_children.sort_by(|a, b| b.score.cmp(&a.score));
+        unique_children.sort_by(|a, b| b.summary_score.cmp(&a.summary_score));
 
         for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
-            debug!("Grid has score {}:\n{}", grid_attempt.score, grid_attempt.grid.to_string());
+            debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
             self.current_generation.push(grid_attempt);
         }
     }
@@ -204,10 +248,7 @@ impl CrosswordGenerator {
     }
 
     fn get_current_best_score(&self) -> isize {
-        match self.current_generation.iter().map(|x| x.score).max() {
-            Some(max_score) => max_score,
-            None => 0,
-        }
+        self.current_generation.iter().map(|x| x.summary_score).max().unwrap_or(0)
     }
 
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
@@ -239,7 +280,7 @@ mod tests {
     #[test]
     fn test_first_generation() {
         crate::logging::init_logger(true);
-        let generator = CrosswordGenerator::new_from_singletons(vec!["APPLE", "PEAR", "BANANA"]);
+        let generator = CrosswordGenerator::new_from_singletons(vec!["APPLE", "PEAR", "BANANA"], HashMap::new());
         debug!("{:#?}", generator);
     }
 
@@ -247,7 +288,7 @@ mod tests {
     fn test_next_generation() {
         crate::logging::init_logger(true);
         let words = vec!["BEARER", "ABOVE", "HERE", "INVALUABLE", "BANANA", "ROYAL", "AROUND", "ROE"];
-        let mut generator = CrosswordGenerator::new_from_singletons(words);
+        let mut generator = CrosswordGenerator::new_from_singletons(words, HashMap::new());
         generator.next_generation();
         generator.next_generation();
         generator.next_generation();
