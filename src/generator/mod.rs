@@ -206,7 +206,7 @@ impl CrosswordGenerator {
         let mut moves = 0;
         let mut success = true;
         while success && moves < self.settings.moves_between_scores {
-            let extended_seed: u64 = seed + moves as u64;
+            let extended_seed: u64 = seed.wrapping_add(moves as u64);
             let random_move = self.choose_random_move_type(extended_seed);
             debug!("Picked move {:?}", random_move);
             match random_move {
@@ -227,7 +227,7 @@ impl CrosswordGenerator {
         let mut moves = 0;
         let mut success = true;
         while success {
-            let extended_seed: u64 = seed + moves as u64;
+            let extended_seed: u64 = seed.wrapping_add(moves as u64);
             success = copied.place_random_word(extended_seed);
             moves += 1;
         }
@@ -240,10 +240,16 @@ impl CrosswordGenerator {
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
         for grid_attempt in self.current_generation_ancestors.iter().chain(self.current_generation_complete.iter()) {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
-            let seed = grid_attempt.summary_score as u64;
+            let seed = (grid_attempt.summary_score as u64) + (self.round as u64);
             for child_index in 0..self.settings.num_children {
-                let child = self.produce_child(&grid_attempt, seed + child_index as u64);
+                let child = self.produce_child(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_ancestors.push(child);
+            }
+            let mut copied = grid_attempt.grid.clone();
+            if copied.count_all_words() > 1 {
+                let other_half = copied.random_partition(seed);
+                self.next_generation_ancestors.push(CrosswordGridAttempt::new(copied, &self.settings));
+                self.next_generation_ancestors.push(CrosswordGridAttempt::new(other_half, &self.settings));
             }
         }
         info!("GENERATED ANCESTORS. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
@@ -273,7 +279,7 @@ impl CrosswordGenerator {
             let seed = grid_attempt.summary_score as u64;
 
             for child_index in 0..self.settings.num_children {
-                let child = self.fill_grid(&grid_attempt, seed + child_index as u64);
+                let child = self.fill_grid(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_complete.push(child);
             }
 
@@ -382,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_next_generation() {
         crate::logging::init_logger(true);
         let words = vec!["BEARER", "ABOVE", "HERE", "INVALUABLE", "BANANA", "ROYAL", "AROUND", "ROE"];

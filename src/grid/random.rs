@@ -222,6 +222,29 @@ impl CrosswordGrid {
         }
         singletons
     }
+
+    pub fn random_partition(&mut self, seed: u64) -> Self {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut word_ids: Vec<usize> = self.word_map.keys().cloned().collect();
+        word_ids.sort();
+        word_ids.shuffle(&mut rng);
+        assert!(word_ids.len() > 1,
+                "Expecting at least two nodes to be able to partition the graph. Word ids: {:?}", word_ids);
+
+        let first_node = word_ids[0];
+        let second_node = word_ids[1];
+        let (first_node_vec, second_node_vec) = self.to_graph().partition_graph(first_node, second_node);
+
+        let mut second_grid = self.clone();
+        for word_id in first_node_vec {
+            second_grid.unplace_word(word_id);
+        }
+        for word_id in second_node_vec {
+            self.unplace_word(word_id);
+        }
+
+        second_grid
+    }
 }
 
 #[cfg(test)]
