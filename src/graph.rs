@@ -1,5 +1,5 @@
 use log::{warn,debug};
-use std::collections::{HashSet,HashMap};
+use std::collections::{HashSet,HashMap,VecDeque};
 
 #[derive(Debug)]
 struct Node {
@@ -171,10 +171,68 @@ impl Graph {
                 for neighbour_id in node.connected_nodes.iter() {
                     edges.push((node_id, *neighbour_id));
                 }
+                edges.sort();
                 edges
             },
             None => vec![],
         }
+    }
+
+    /// Given two node IDs, split the graph into two connected components, one containing
+    /// first_node and one containing second_node.
+    pub fn partition_graph(&self, first_node: usize, second_node: usize) -> (Vec<usize>, Vec<usize>) {
+        let mut node_visits: HashMap<usize, usize> = HashMap::new();
+        node_visits.insert(first_node, 1);
+        node_visits.insert(second_node, 1);
+
+        let mut first_node_set: HashSet<usize> = HashSet::new();
+        first_node_set.insert(first_node);
+        let mut second_node_set: HashSet<usize> = HashSet::new();
+        second_node_set.insert(second_node);
+
+        let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
+        let mut edge_stack: VecDeque<(bool, (usize, usize))> = VecDeque::new();
+
+        for edge in self._get_edge_list(first_node) {
+            edge_stack.push_back((true, edge));
+        }
+        for edge in self._get_edge_list(second_node) {
+            edge_stack.push_back((false, edge));
+        }
+        debug!("Edge stack to start {:?}", edge_stack);
+
+        while let Some((from_first, edge)) = edge_stack.pop_front() {
+            debug!("Node sets: {:?}\n{:?}", first_node_set, second_node_set);
+            // Only traverse edge if we haven't already used it
+            let edge_already_used: bool = !used_edges.insert(edge);
+
+            // Also add the reverse edge to the set of used edges
+            let (node_from, node_to) = edge;
+            used_edges.insert((node_to, node_from));
+            debug!("Looking at edge {:?}, already considered {}", edge, edge_already_used);
+            if !edge_already_used {
+                // Visit the node this edge points to
+
+                let is_first_visit = if from_first {
+                    !second_node_set.contains(&node_to) && first_node_set.insert(node_to)
+                } else {
+                    !first_node_set.contains(&node_to) && second_node_set.insert(node_to)
+                };
+
+                if is_first_visit {
+                    debug!("First visit to node {}", node_to);
+                    // If this is our first visit, add all edges onto the stack
+                    for edge in self._get_edge_list(node_to) {
+                        edge_stack.push_back((from_first, edge));
+                    }
+                }
+            }
+        }
+        let mut first_node_vec: Vec<usize> = first_node_set.into_iter().collect();
+        first_node_vec.sort();
+        let mut second_node_vec: Vec<usize> = second_node_set.into_iter().collect();
+        second_node_vec.sort();
+        (first_node_vec, second_node_vec)
     }
 }
 
@@ -191,6 +249,7 @@ mod tests {
 
     #[test]
     fn build_graph_complex() {
+        crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (2, 0)]);
         check_graph(graph, 4, 4);
 
@@ -200,6 +259,7 @@ mod tests {
 
     #[test]
     fn build_graph_basic() {
+        crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
         check_graph(graph, 4, 3);
 
@@ -209,6 +269,7 @@ mod tests {
 
     #[test]
     fn traverse_graph() {
+        crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
         debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert_eq!(graph.count_cycles(), 0);
@@ -227,5 +288,80 @@ mod tests {
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
         debug!("Traversal {:#?}", graph.traverse_count_node_visits());
         assert!(!graph.is_connected());
+    }
+
+    #[test]
+    fn test_partition_graph() {
+        crate::logging::init_logger(true);
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+        assert_eq!(graph.partition_graph(0, 3), (vec![0, 1], vec![2, 3]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+        assert_eq!(graph.partition_graph(3, 0), (vec![2, 3], vec![0, 1]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+        assert_eq!(graph.partition_graph(0, 1), (vec![0], vec![1, 2, 3]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+        assert_eq!(graph.partition_graph(1, 0), (vec![1, 2, 3], vec![0]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
+        assert_eq!(graph.partition_graph(0, 3), (vec![0, 1], vec![2, 3]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
+        assert_eq!(graph.partition_graph(0, 2), (vec![0, 1, 3], vec![2]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
+        assert_eq!(graph.partition_graph(0, 3), (vec![0, 1, 2], vec![3, 4, 5]));
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
+        assert_eq!(graph.partition_graph(3, 0), (vec![3, 4, 5], vec![0, 1, 2]));
+    }
+
+    #[test]
+    fn test_partition_graph_robust() {
+        crate::logging::init_logger(true);
+        let mut edges: Vec<(usize, usize)> = vec![];
+        for i in 0..20 {
+            edges.push((i, i+1));
+            edges.push((i, (3*i + i^2 + 1).rem_euclid(21)));
+        }
+        edges.sort();
+        let graph = Graph::new_from_edges(edges.clone());
+        assert!(graph.is_connected());
+        for i in 0..21 {
+            for j in (i+1)..21 {
+                // For each pair of indices, split the graph
+                let (first, second) = graph.partition_graph(i, j);
+
+                // Create hashmap versions for convenience
+                let first_hash: HashSet<usize> = first.iter().cloned().collect();
+                let second_hash: HashSet<usize> = second.iter().cloned().collect();
+
+                // Check that each hash contains its respective starting node
+                assert!(first_hash.contains(&i));
+                assert!(second_hash.contains(&j));
+
+                // Check the intersection is empty
+                let intersection: HashSet<usize> = first_hash.intersection(&second_hash).cloned().collect();
+                assert!(intersection.is_empty(), "Expected empty intersection, found {:?}", intersection);
+
+                // Check that every node is contained in one of the sets
+                for k in 0..21 {
+                    assert!(first_hash.contains(&k) || second_hash.contains(&k));
+                }
+
+                // Check the graphs restricted to just one set are both connected
+                let first_edges: Vec<(usize, usize)> = edges.iter().filter(|e| first_hash.contains(&e.0)
+                        && first_hash.contains(&e.1)).cloned().collect();
+                let second_edges: Vec<(usize, usize)> = edges.iter().filter(|e| second_hash.contains(&e.0)
+                        && second_hash.contains(&e.1)).cloned().collect();
+
+                let first_graph = Graph::new_from_edges(first_edges);
+                assert!(first_graph.is_connected());
+                let second_graph = Graph::new_from_edges(second_edges);
+                assert!(second_graph.is_connected());
+            }
+        }
     }
 }
