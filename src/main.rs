@@ -26,9 +26,9 @@ fn main() {
         .args(&setting_args)
         .get_matches();
 
-    let mut settings_map: HashMap<&str, u32> = HashMap::new();
+    let mut settings_map: HashMap<&str, usize> = HashMap::new();
     for setting_name in setting_names.iter() {
-        let setting_value = value_t!(matches, *setting_name, u32);
+        let setting_value = value_t!(matches, *setting_name, usize);
         match setting_value {
             Ok(value) => { settings_map.insert(setting_name, value); },
             Err(error) if error.kind == clap::ErrorKind::ArgumentNotFound => (),
@@ -37,6 +37,7 @@ fn main() {
     }
     println!("{:?}", settings_map);
 
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file(matches.value_of("CLUE_FILE").unwrap());
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file(matches.value_of("CLUE_FILE").unwrap(),
+    settings_map);
 
 }

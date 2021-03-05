@@ -108,7 +108,11 @@ pub struct CrosswordGenerator {
 }
 
 impl CrosswordGenerator {
-    pub fn new_from_file(filename: &str) -> Self {
+    pub fn new_from_file_default(filename: &str) -> Self {
+        CrosswordGenerator::new_from_file(filename, HashMap::new())
+    }
+
+    pub fn new_from_file(filename: &str, settings: HashMap<&str, usize>) -> Self {
         let contents = fs::read_to_string(filename).unwrap();
         let words: Vec<&str> = contents.split('\n').collect();
         CrosswordGenerator::new_from_singletons(words)

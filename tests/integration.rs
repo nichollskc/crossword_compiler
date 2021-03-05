@@ -59,14 +59,14 @@ fn test_generator() {
 #[test]
 fn test_generator_fifteen_squared() {
     crossword::logging::init_logger(true);
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
     generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
     let results = generator.generate();
     for grid in results.iter() {
         debug!("{}", grid.to_string());
     }
 
-    let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    let mut generator2 = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
     generator2.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 5, 2, 5, 5);
     let results2 = generator2.generate();
 
@@ -86,7 +86,7 @@ fn test_generator_fifteen_squared() {
 fn test_generator_fifteen_squared_branching() {
     crossword::logging::init_logger(true);
     info!("Starting branching generator");
-    let mut generator = crossword::generator::CrosswordGenerator::new_from_file("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
+    let mut generator = crossword::generator::CrosswordGenerator::new_from_file_default("tests/resources/fifteensquared/quiptic-1109-by-pan.txt");
     generator.settings = crossword::generator::CrosswordGeneratorSettings::new(13, 30, 2, 100, 1);
     let results = generator.generate();
     for grid in results.iter() {
