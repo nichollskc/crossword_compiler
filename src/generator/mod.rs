@@ -122,6 +122,7 @@ pub struct CrosswordGeneratorSettings {
     num_children: usize,
     num_per_generation: usize,
     max_rounds: usize,
+    min_rounds: usize,
     move_types: Vec<MoveType>,
     weight_non_square: usize,
     weight_prop_filled: usize,
@@ -140,13 +141,14 @@ impl CrosswordGeneratorSettings {
         CrosswordGeneratorSettings {
             seed: *settings.get("seed").unwrap_or(&13) as u64,
             moves_between_scores: *settings.get("moves-between-scores").unwrap_or(&4),
-            num_children: *settings.get("num-children").unwrap_or(&30),
-            num_per_generation: *settings.get("num-per-gen").unwrap_or(&20),
+            num_children: *settings.get("num-children").unwrap_or(&15),
+            num_per_generation: *settings.get("num-per-gen").unwrap_or(&15),
             max_rounds: *settings.get("max-rounds").unwrap_or(&20),
+            min_rounds: *settings.get("min-rounds").unwrap_or(&10),
             weight_non_square: *settings.get("weight-non-square").unwrap_or(&2),
             weight_prop_filled: *settings.get("weight-prop-filled").unwrap_or(&10),
             weight_prop_intersect: *settings.get("weight-prop-intersect").unwrap_or(&500),
-            weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&100),
+            weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&1000),
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
             weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
             move_types: generate_move_types_vec(3, 1),
@@ -245,11 +247,16 @@ impl CrosswordGenerator {
                 let child = self.produce_child(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_ancestors.push(child);
             }
-            let mut copied = grid_attempt.grid.clone();
-            if copied.count_all_words() > 1 {
-                let other_half = copied.random_partition(seed);
-                self.next_generation_ancestors.push(CrosswordGridAttempt::new(copied, &self.settings));
-                self.next_generation_ancestors.push(CrosswordGridAttempt::new(other_half, &self.settings));
+
+            for i in 0..5 {
+                let mut copied = grid_attempt.grid.clone();
+                if copied.count_placed_words() > 1 {
+                    let other_half = copied.random_partition(seed);
+                    debug!("Partitioned graph {}\n{}\n{}\nPartitioned graph over",
+                            grid_attempt.grid.to_string(), copied.to_string(), other_half.to_string());
+                    self.next_generation_ancestors.push(CrosswordGridAttempt::new(copied, &self.settings));
+                    self.next_generation_ancestors.push(CrosswordGridAttempt::new(other_half, &self.settings));
+                }
             }
         }
         info!("GENERATED ANCESTORS. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
@@ -362,11 +369,14 @@ impl CrosswordGenerator {
             info!("Round {}. Average score is {}", self.round, self.get_average_scores());
             info!("Round {}. Current best score is {:?}", self.round, best_score);
 
-            self.round += 1;
             let this_generation_stringified = self.stringified_output();
             info!("This generation:\n{}", this_generation_stringified);
-            reached_convergence = this_generation_stringified == last_generation_stringified;
+            if self.round > self.settings.min_rounds {
+                info!("Checking for convergence");
+                reached_convergence = this_generation_stringified == last_generation_stringified;
+            }
             last_generation_stringified = this_generation_stringified;
+            self.round += 1;
         }
         if reached_convergence {
             info!("Stopped iterating since we stopped increasing our score");

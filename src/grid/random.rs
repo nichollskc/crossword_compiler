@@ -243,6 +243,8 @@ impl CrosswordGrid {
             self.unplace_word(word_id);
         }
 
+        self.fit_to_size();
+        second_grid.fit_to_size();
         second_grid
     }
 }

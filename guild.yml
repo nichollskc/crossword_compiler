@@ -6,12 +6,12 @@ generate:
     num-per-gen: 20
     seed: 13
     moves-between-scores: 5
-    num-children: 30
+    num-children: 15
     max-rounds: 20
     weight-non-square: 2
     weight-prop-filled: 10
     weight-prop-intersect: 500
-    weight-num-cycles: 100
+    weight-num-cycles: 1000
     weight-num-intersect: 100
     weight-words-placed: 10
   sourcecode:
