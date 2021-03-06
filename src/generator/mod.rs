@@ -171,10 +171,14 @@ impl CrosswordGenerator {
         CrosswordGenerator::new_from_file(filename, HashMap::new())
     }
 
-    pub fn new_from_file(filename: &str, settings_map: HashMap<&str, usize>) -> Self {
-        let contents = fs::read_to_string(filename).unwrap();
+    pub fn new_from_file_contents(contents: &str, settings_map: HashMap<&str, usize>) -> Self {
         let words: Vec<&str> = contents.split('\n').collect();
         CrosswordGenerator::new_from_singletons(words, settings_map)
+    }
+
+    pub fn new_from_file(filename: &str, settings_map: HashMap<&str, usize>) -> Self {
+        let contents = fs::read_to_string(filename).unwrap();
+        CrosswordGenerator::new_from_file_contents(&contents, settings_map)
     }
 
     pub fn new_from_singletons(words: Vec<&str>, settings_map: HashMap<&str, usize>) -> Self {
@@ -242,7 +246,7 @@ impl CrosswordGenerator {
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
         for grid_attempt in self.current_generation_ancestors.iter().chain(self.current_generation_complete.iter()) {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
-            let seed = (grid_attempt.summary_score as u64) + (self.round as u64);
+            let seed = (grid_attempt.summary_score as u64).wrapping_add(self.round as u64);
             for child_index in 0..self.settings.num_children {
                 let child = self.produce_child(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_ancestors.push(child);
