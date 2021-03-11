@@ -115,7 +115,10 @@ impl CrosswordGrid {
         let mut filled_count: usize = 0;
 
         while col <= self.bottom_right_cell_index.1 {
-            if self.cell_map.get(&Location(row, col)).unwrap().contains_letter() {
+            let location = Location(row, col);
+            let cell = self.cell_map.get(&location);
+            assert!(cell.is_some(), "Expected to find cell at location {:?}, but no cell found!\n{:?}", location, self);
+            if cell.unwrap().contains_letter() {
                 filled_count += 1;
             }
             col += 1;
@@ -128,7 +131,10 @@ impl CrosswordGrid {
         let mut filled_count: usize = 0;
 
         while row <= self.bottom_right_cell_index.0 {
-            if self.cell_map.get(&Location(row, col)).unwrap().contains_letter() {
+            let location = Location(row, col);
+            let cell = self.cell_map.get(&location);
+            assert!(cell.is_some(), "Expected to find cell at location {:?}, but no cell found!\n{:?}", location, self);
+            if cell.unwrap().contains_letter() {
                 filled_count += 1;
             }
             row += 1;
