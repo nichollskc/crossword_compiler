@@ -1,4 +1,4 @@
-use log::debug;
+use log::{info,debug};
 use std::collections::HashMap;
 
 use rand::seq::SliceRandom;
@@ -225,7 +225,8 @@ impl CrosswordGrid {
 
     pub fn random_partition(&mut self, seed: u64) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
-        let mut word_ids: Vec<usize> = self.word_map.keys().cloned().collect();
+        let mut word_ids: Vec<usize> = self.word_map.iter().filter(|(k,v)| v.is_placed()).map(|x| x.0.clone()).collect();
+        self.fit_to_size();
         word_ids.sort();
         word_ids.shuffle(&mut rng);
         assert!(word_ids.len() > 1,
