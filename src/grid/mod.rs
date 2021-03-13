@@ -129,16 +129,19 @@ impl CrosswordGrid {
         grid
     }
 
-    pub fn to_graph(&self) -> Graph {
+    fn get_all_intersections(&self) -> Vec<(usize, usize)> {
         let mut edges: Vec<(usize, usize)> = vec![];
-        for cell in self.cell_map.values() {
-            if cell.is_intersection() {
-                edges.push((cell.get_across_word_id().unwrap(),
-                            cell.get_down_word_id().unwrap()));
-            }
+        for cell in self.cell_map.values().filter(|c| c.is_intersection()) {
+            edges.push((cell.get_across_word_id().unwrap(),
+                        cell.get_down_word_id().unwrap()));
         }
         edges.sort();
         debug!("All intersections found {:#?}", edges);
+        edges
+    }
+
+    pub fn to_graph(&self) -> Graph {
+        let edges = self.get_all_intersections();
         let mut graph = Graph::new_from_edges(edges);
 
         for (word_id, _word) in self.word_map.iter().filter(|(_id, w)| w.is_placed()) {
