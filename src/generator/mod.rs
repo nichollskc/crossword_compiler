@@ -287,16 +287,18 @@ impl CrosswordGenerator {
         unique_children.sort_by(|a, b| b.ancestor_summary_score.cmp(&a.ancestor_summary_score));
 
         for grid_attempt in unique_children.drain(..).take(self.settings.num_per_generation) {
-            let seed = grid_attempt.summary_score as u64;
+            debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
+            self.current_generation_ancestors.push(grid_attempt);
+        }
 
+        for grid_attempt in self.current_generation_ancestors.iter() {
+            let seed = grid_attempt.summary_score as u64;
             for child_index in 0..self.settings.num_children {
                 let child = self.fill_grid(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_complete.push(child);
             }
-
-            debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
-            self.current_generation_ancestors.push(grid_attempt);
         }
+
         info!("MADE ANCESTORS COMPLETE. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
               self.current_generation_ancestors.len(), self.current_generation_complete.len(),
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
