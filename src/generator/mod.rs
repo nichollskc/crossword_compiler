@@ -7,6 +7,8 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+use ndarray::Array2;
+
 use crate::grid::CrosswordGrid;
 
 mod stats;
@@ -313,12 +315,43 @@ impl CrosswordGenerator {
                 unique_children.push(child);
             }
         }
+        let mut unique_children_summaries: Vec<isize> = unique_children.iter().map(|x| x.summary_score).collect();
+        let mut unique_children_adjacencies: Vec<Array2<u8>> = unique_children.iter().map(|x| x.grid.to_graph_adjacency_matrix()).collect();
+        let mut unique_children_unions: Vec<isize> = unique_children_adjacencies.iter().map(|x| x.sum() as isize).collect();
+        let mut unique_children_intersections: Vec<isize> = vec![0; unique_children.len()];
+        let mut unique_children_adjusted_scores: Vec<isize> = unique_children_summaries.iter().cloned().collect();
 
-        unique_children.sort_by(|a, b| b.summary_score.cmp(&a.summary_score));
+        while best_attempts.len() < num_to_pick {
+            debug!("Raw scores:\n{:?}", unique_children_summaries);
+            debug!("Adjusted scores:\n{:?}", unique_children_adjusted_scores);
+            let best_index: usize = unique_children_adjusted_scores.iter().enumerate().max_by_key(|(_i, &s)| s).map(|(i, _s)| i).unwrap();
 
-        for grid_attempt in unique_children.drain(..).take(num_to_pick) {
-            debug!("Grid has score {}\n{}", grid_attempt.score, grid_attempt.grid.to_string());
-            best_attempts.push(grid_attempt);
+            let best_attempt = unique_children.remove(best_index);
+            unique_children_summaries.remove(best_index);
+            unique_children_adjacencies.remove(best_index);
+            unique_children_unions.remove(best_index);
+            unique_children_intersections.remove(best_index);
+            unique_children_adjusted_scores.remove(best_index);
+
+            debug!("Grid has score {}\n{}", best_attempt.score, best_attempt.grid.to_string());
+            let best_adjacency = &best_attempt.grid.to_graph_adjacency_matrix();
+            let existing_grid_strings: Vec<String> = best_attempts.iter().map(|x| x.grid.to_string()).collect();
+            debug!("Existing grids:\n{}", existing_grid_strings.join("\n\n"));
+
+            for i in 0..unique_children.len() {
+                let adjacency = &unique_children_adjacencies[i];
+                unique_children_intersections[i] += (best_adjacency * adjacency).sum() as isize;
+                unique_children_unions[i] += best_adjacency.sum() as isize;
+                let similarity = (unique_children_intersections[i] as f64) / (unique_children_unions[i] as f64);
+                unique_children_adjusted_scores[i] = ((unique_children_summaries[i] as f64) * (1.0 - similarity)) as isize;
+                debug!("This grid raw score {}, similarity {}, adjusted {}:\n{}",
+                      unique_children_summaries[i],
+                      similarity,
+                      unique_children_adjusted_scores[i],
+                      unique_children[i].grid.to_string());
+            }
+
+            best_attempts.push(best_attempt);
         }
         best_attempts
     }

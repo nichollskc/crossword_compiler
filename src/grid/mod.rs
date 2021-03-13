@@ -1,7 +1,8 @@
 use crate::graph::Graph;
-use log::debug;
+use log::{info,debug};
 use std::collections::HashMap;
 use std::fmt;
+use ndarray::Array2;
 
 mod builder;
 mod word;
@@ -140,6 +141,20 @@ impl CrosswordGrid {
         edges
     }
 
+    pub fn to_graph_adjacency_matrix(&self) -> Array2<u8> {
+        let edges = self.get_all_intersections();
+        let mut word_ids: Vec<usize> = self.word_map.keys().cloned().collect();
+        word_ids.sort();
+        let max_word_id = word_ids[word_ids.len() - 1] + 1;
+        let mut adjacency: Array2<u8> = Array2::zeros((max_word_id, max_word_id));
+
+        for (word1, word2) in edges.iter() {
+            adjacency[[*word1, *word2]] += 1;
+            adjacency[[*word2, *word1]] += 1;
+        }
+        adjacency
+    }
+
     pub fn to_graph(&self) -> Graph {
         let edges = self.get_all_intersections();
         let mut graph = Graph::new_from_edges(edges);
@@ -244,5 +259,40 @@ impl CrosswordGrid {
             word.remove_placement();
         }
         debug!("Now have {} words in grid", self.word_map.len());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use ndarray::array;
+
+    #[test]
+    fn test_adjacency() {
+        crate::logging::init_logger(true);
+        let mut grid = CrosswordGrid::new_single_word("ALPHA");
+        let arrival_word_id = grid.add_unplaced_word("ARRIVAL", "", None);
+        let bear_word_id = grid.add_unplaced_word("BEARER", "", None);
+        let innards_word_id = grid.add_unplaced_word("INNARDS", "", None);
+        let cup_word_id = grid.add_unplaced_word("CUP", "", None);
+        let cap_word_id = grid.add_unplaced_word("CAP", "", None);
+        grid.check_valid();
+        debug!("{:#?}", grid);
+
+        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, Direction::Down));
+        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, Direction::Down));
+        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, Direction::Down));
+        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, Direction::Across));
+        debug!("{:#?}", grid);
+        grid.check_valid();
+
+        let adjacency = grid.to_graph_adjacency_matrix();
+        assert_eq!(adjacency, array![[0, 1, 1, 0, 1, 0],
+                                     [1, 0, 0, 1, 0, 0],
+                                     [1, 0, 0, 1, 0, 0],
+                                     [0, 1, 1, 0, 0, 0],
+                                     [1, 0, 0, 0, 0, 0],
+                                     [0, 0, 0, 0, 0, 0]]);
     }
 }
