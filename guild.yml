@@ -3,11 +3,11 @@ generate:
   exec: /Users/kath/docs/Programming/rust/crossword/target/release/crossword ${flag_args}
   flags:
     input-file: tests/resources/fifteensquared/quiptic-1109-by-pan.txt
-    num-per-gen: 20
+    num-per-gen: 50
     seed: 13
     moves-between-scores: 5
-    num-children: 15
-    max-rounds: 20
+    num-children: 2
+    max-rounds: 40
     weight-non-square: 2
     weight-prop-filled: 10
     weight-prop-intersect: 500

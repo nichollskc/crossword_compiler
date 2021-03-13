@@ -244,7 +244,7 @@ impl CrosswordGenerator {
         info!("START. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
               self.current_generation_ancestors.len(), self.current_generation_complete.len(),
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
-        for grid_attempt in self.current_generation_ancestors.iter().chain(self.current_generation_complete.iter()) {
+        for grid_attempt in self.current_generation_ancestors.iter() {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
             let seed = (grid_attempt.summary_score as u64).wrapping_add(self.round as u64);
             for child_index in 0..self.settings.num_children {
@@ -252,7 +252,7 @@ impl CrosswordGenerator {
                 self.next_generation_ancestors.push(child);
             }
 
-            for i in 0..5 {
+            for i in 0..self.settings.num_children {
                 let mut copied = grid_attempt.grid.clone();
                 if copied.count_placed_words() > 1 {
                     let other_half = copied.random_partition(seed);
@@ -386,6 +386,7 @@ impl CrosswordGenerator {
             info!("Stopped iterating since we stopped increasing our score");
         }
 
+        info!("Best final score is: {}", self.current_generation_complete[0].score);
         self.output_best(self.settings.num_per_generation)
     }
 }
