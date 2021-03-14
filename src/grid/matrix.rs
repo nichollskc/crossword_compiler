@@ -5,9 +5,22 @@ use ndarray::{Array,Array2};
 use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
+use super::VALID_ANSWERCHARS;
 
 fn coord_isize_to_usize(value: isize, shift: isize) -> usize {
     (value + shift) as usize
+}
+
+fn cell_to_u8(cell: &Cell) -> u8 {
+    if cell.is_empty() {
+        0
+    } else if cell.is_black() {
+        1
+    } else {
+        let c = cell.to_char();
+        let c_index = VALID_ANSWERCHARS.find(c).unwrap();
+        (c_index as u8) + 2
+    }
 }
 
 impl CrosswordGrid {
@@ -20,7 +33,7 @@ impl CrosswordGrid {
             while col < self.bottom_right_cell_index.1 {
                 let cell = self.cell_map.get(&Location(row, col)).unwrap();
                 matrix[[coord_isize_to_usize(row, - self.top_left_cell_index.0 - 1),
-                        coord_isize_to_usize(col, - self.top_left_cell_index.1 - 1)]] = cell.to_u8();
+                        coord_isize_to_usize(col, - self.top_left_cell_index.1 - 1)]] = cell_to_u8(cell);
                 col += 1;
             }
             col = self.top_left_cell_index.1 + 1;
