@@ -21,3 +21,16 @@ Tool to fit a list of words into a crossword grid. It uses a genetic algorithm t
 guild run generate num-per-gen=[5,10,15,20,25,30] moves-between-scores=[1,2,3,4,5,6] num-children=[5,10,15,20] weight-non-square=[1,5,10,50,100,500,1000] weight-prop-filled=[1,5,10,50,100,500,1000] weight-prop-intersect=[1,5,10,50,100,500,1000] weight-num-cycles=[1,5,10,50,100,500,1000] weight-num-intersect=[1,5,10,50,100,500,1000] weight-words-placed=[1,5,10,50,100,500,1000] -o random --max-trials 100
 
 96af330691054635b86a7127aba35e8d looks good
+
+# Profiling
+
+Flamegraph
+cargo install flamegraph
+sudo cargo flamegraph --bin crossword -- --input-file tests/resources/fifteensquared/quiptic-1109-by-pan.txt
+
+Then interact using a browser:
+file:///Users/kath/docs/Programming/rust/crossword/flamegraph.svg
+
+# Further improvements
+
+- Attempt to combine two grids
