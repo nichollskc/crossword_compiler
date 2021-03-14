@@ -2,6 +2,7 @@ use log::{debug,info,warn};
 use std::fmt;
 
 use super::Direction;
+use super::VALID_ANSWERCHARS;
 
 #[derive(Clone,Copy,Debug)]
 enum FillStatus {
@@ -208,6 +209,14 @@ impl Cell {
             true
         } else {
             false
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        match self.fill_status {
+            FillStatus::Empty => 0,
+            FillStatus::Black => 1,
+            FillStatus::Filled(filled_cell) => (VALID_ANSWERCHARS.find(filled_cell.letter).unwrap() + 2) as u8,
         }
     }
 }

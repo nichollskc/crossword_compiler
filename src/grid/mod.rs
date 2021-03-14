@@ -13,6 +13,7 @@ mod random;
 mod spacing;
 mod properties;
 mod pdf_conversion;
+mod matrix;
 
 use word::Word;
 use cell::Cell;
