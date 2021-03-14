@@ -1,3 +1,5 @@
+use log::debug;
+
 use super::CrosswordGrid;
 
 impl CrosswordGrid {
@@ -36,5 +38,31 @@ impl CrosswordGrid {
     pub fn count_empty_cells(&self) -> usize {
         let (nrows, ncols) = self.get_grid_dimensions();
         nrows * ncols - self.count_filled_cells()
+    }
+
+    pub fn average_intersections_per_word(&self) -> f64 {
+        let mut percent_intersection_per_word: Vec<f64> = vec![];
+        for word in self.word_map.values() {
+            let mut intersections: f64 = 0.0;
+            let mut cells: f64 = 0.0;
+            if let Some((start, _end, direction)) = word.get_location() {
+                let mut location = start;
+                debug!("{:?}", word);
+                for _i in 0..word.word_text.len() {
+                    let cell = self.cell_map.get(&location).unwrap();
+                    debug!("{:?}", cell);
+                    assert!(cell.contains_letter(), "Expected cell {:?} in word {:?} to contain letter",location, word);
+                    cells += 1.0;
+                    if cell.is_intersection() {
+                        intersections += 1.0;
+                    }
+                    location = location.relative_location_directed(1, direction);
+                }
+            }
+            debug!("{:.0}/{:.0} = {:.2}", intersections, cells, intersections / cells);
+            percent_intersection_per_word.push(intersections / cells);
+        }
+        debug!("{:?}", percent_intersection_per_word);
+        percent_intersection_per_word.iter().sum::<f64>() / (percent_intersection_per_word.len() as f64)
     }
 }

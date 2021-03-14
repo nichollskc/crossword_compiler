@@ -2,6 +2,10 @@ use std::collections::HashMap;
 use log::{info,debug};
 use crossword;
 
+fn assert_approx_equal(a: f64, b: f64) -> bool {
+    (a * 1000.0) as isize == (b * 1000.0) as isize
+}
+
 #[test]
 fn read_from_file() {
     let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
@@ -108,4 +112,14 @@ fn test_printing() {
     let mut printer = crossword::grid::CrosswordPrinter::new(grid);
     println!("{}", printer.print());
     debug!("{:#?}", printer);
+}
+
+#[test]
+fn test_average_intersections() {
+    crossword::logging::init_logger(true);
+    let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/bear_button.txt");
+    assert_approx_equal(grid.average_intersections_per_word(), (1.0/4.0 + 2.0/3.0 + 2.0/6.0 + 1.0/4.0)/4.0);
+
+    let grid = crossword::grid::CrosswordGridBuilder::new().from_file("tests/resources/simple_example.txt");
+    assert_approx_equal(grid.average_intersections_per_word(), (2.0/6.0 + 2.0/5.0 + 2.0/4.0 + 2.0/5.0 + 3.0/10.0 + 2.0/3.0 + 2.0/3.0 + 3.0/6.0 + 2.0/6.0 + 2.0/5.0)/10.0);
 }
