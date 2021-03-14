@@ -145,8 +145,6 @@ impl CrosswordGrid {
     /// Trim the grid so that there is exactly one row and column of empty
     /// cells on either side of the grid
     pub fn fit_to_size(&mut self) {
-        self.check_valid();
-
         // First make sure we've got at least one buffer row and buffer column
         self.ensure_buffer_exists();
 

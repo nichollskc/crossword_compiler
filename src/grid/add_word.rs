@@ -180,7 +180,6 @@ impl CrosswordGrid {
                                   word_id: usize,
                                   index_in_word: usize,
                                   word_direction: Direction) -> bool {
-        self.fit_to_size();
         self.fill_black_cells();
 
         let mut success: bool;
@@ -219,6 +218,7 @@ impl CrosswordGrid {
                     cell.remove_word(word_id);
                 }
             }
+            self.fit_to_size();
         } else {
             success = false;
         }
@@ -228,7 +228,6 @@ impl CrosswordGrid {
             assert!(!updated_word.is_placed());
         }
         debug!("After possibly adding {:?}", updated_word);
-        self.fit_to_size();
         success
     }
 }

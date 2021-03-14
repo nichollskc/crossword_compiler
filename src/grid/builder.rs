@@ -111,6 +111,7 @@ impl CrosswordGridBuilder {
             grid.delete_word(word_id);
         }
 
+        grid.check_valid();
         grid.fit_to_size();
         grid
     }
