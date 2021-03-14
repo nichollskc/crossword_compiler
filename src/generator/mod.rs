@@ -49,6 +49,7 @@ struct CrosswordGridScore {
     filled_cells: f64,
     num_cycles: f64,
     num_intersections: f64,
+    average_intersections: f64,
     summary: f64,
 }
 
@@ -65,12 +66,14 @@ impl CrosswordGridScore {
         let num_intersections: f64 = grid.count_intersections() as f64;
         let double_counted_filled: f64 = filled_cells + num_intersections;
         let proportion_intersections: f64 = (num_intersections * 2.0) / double_counted_filled;
+        let average_intersections: f64 = grid.average_intersections_per_word();
 
         let summary: f64 = - (non_square_penalty as f64) * (settings.weight_non_square as f64)
                 + proportion_filled * (settings.weight_prop_filled as f64)
                 + proportion_intersections * (settings.weight_prop_intersect as f64)
                 + num_cycles * (settings.weight_num_cycles as f64)
                 + num_intersections * (settings.weight_num_intersect as f64)
+                + average_intersections * (settings.weight_avg_intersect as f64)
                 + words_placed * (settings.weight_words_placed as f64);
         CrosswordGridScore {
             total_cells: total_cells as f64,
@@ -82,6 +85,7 @@ impl CrosswordGridScore {
             filled_cells,
             num_cycles,
             num_intersections,
+            average_intersections,
             summary,
         }
     }
@@ -90,15 +94,15 @@ impl CrosswordGridScore {
 impl fmt::Display for CrosswordGridScore {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "GridScore[ summary:: {:.3} total_cells:: {:.0} filled_cells:: {:.0} \
-               non_square_penalty:: {:.0} proportion_filled:: {:.3} proportion_intersections:: {:.3} \
+               non_square_penalty:: {:.0} proportion_filled:: {:.3} proportion_intersections:: {:.3} average_intersections:: {:.3} \
                words_placed:: {:.0} words_unplaced:: {:.0} num_cycles:: {:.0} num_intersections:: {:.0}]",
                self.summary, self.total_cells, self.filled_cells,
-               self.non_square_penalty, self.proportion_filled, self.proportion_intersections,
+               self.non_square_penalty, self.proportion_filled, self.proportion_intersections, self.average_intersections,
                self.words_placed, self.words_unplaced, self.num_cycles, self.num_intersections)
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct CrosswordGridAttempt {
     grid: CrosswordGrid,
     score: CrosswordGridScore,
@@ -134,6 +138,7 @@ pub struct CrosswordGeneratorSettings {
     weight_prop_intersect: usize,
     weight_num_cycles: usize,
     weight_num_intersect: usize,
+    weight_avg_intersect: usize,
     weight_words_placed: usize,
 }
 
@@ -155,6 +160,7 @@ impl CrosswordGeneratorSettings {
             weight_prop_intersect: *settings.get("weight-prop-intersect").unwrap_or(&500),
             weight_num_cycles: *settings.get("weight-num-cycles").unwrap_or(&1000),
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
+            weight_avg_intersect: *settings.get("weight-avg-intersect").unwrap_or(&5000),
             weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
             move_types: generate_move_types_vec(3, 1),
         }
@@ -348,11 +354,12 @@ impl CrosswordGenerator {
                 if adjusted < unique_children_adjusted_scores[i] {
                     unique_children_adjusted_scores[i] = adjusted;
                 }
-                debug!("This grid raw score {}, similarity {}, adjusted {}:\n{}",
+                debug!("This grid raw score {}, similarity {}, adjusted {}:\n{}\n{:?}",
                       unique_children_summaries[i],
                       similarity,
                       unique_children_adjusted_scores[i],
-                      unique_children[i].grid.to_string());
+                      unique_children[i].grid.to_string(),
+                      unique_children[i].score);
             }
 
             best_attempts.push(best_attempt);

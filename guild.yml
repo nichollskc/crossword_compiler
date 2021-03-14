@@ -13,6 +13,7 @@ generate:
     weight-prop-intersect: 500
     weight-num-cycles: 1000
     weight-num-intersect: 100
+    weight-avg-intersect: 5000
     weight-words-placed: 10
   sourcecode:
     - '*.rs'
