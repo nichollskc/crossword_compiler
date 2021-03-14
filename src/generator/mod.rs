@@ -31,6 +31,13 @@ fn generate_move_types_vec(place_word_weight: usize, prune_leaves_weight: usize)
     move_types
 }
 
+fn calculate_similarity(adj1: &Array2<u8>, adj2: &Array2<u8>) -> f64 {
+    let union = (adj1 + adj2).iter().filter(|x| **x > 0).count() as f64;
+    let intersection = (adj1 * adj2).sum() as f64;
+    let similarity = intersection / union;
+    similarity
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 struct CrosswordGridScore {
     total_cells: f64,
@@ -317,8 +324,6 @@ impl CrosswordGenerator {
         }
         let mut unique_children_summaries: Vec<isize> = unique_children.iter().map(|x| x.summary_score).collect();
         let mut unique_children_adjacencies: Vec<Array2<u8>> = unique_children.iter().map(|x| x.grid.to_graph_adjacency_matrix()).collect();
-        let mut unique_children_unions: Vec<isize> = unique_children_adjacencies.iter().map(|x| x.sum() as isize).collect();
-        let mut unique_children_intersections: Vec<isize> = vec![0; unique_children.len()];
         let mut unique_children_adjusted_scores: Vec<isize> = unique_children_summaries.iter().cloned().collect();
 
         while best_attempts.len() < num_to_pick {
@@ -329,8 +334,6 @@ impl CrosswordGenerator {
             let best_attempt = unique_children.remove(best_index);
             unique_children_summaries.remove(best_index);
             unique_children_adjacencies.remove(best_index);
-            unique_children_unions.remove(best_index);
-            unique_children_intersections.remove(best_index);
             unique_children_adjusted_scores.remove(best_index);
 
             debug!("Grid has score {}\n{}", best_attempt.score, best_attempt.grid.to_string());
@@ -340,10 +343,11 @@ impl CrosswordGenerator {
 
             for i in 0..unique_children.len() {
                 let adjacency = &unique_children_adjacencies[i];
-                unique_children_intersections[i] += (best_adjacency * adjacency).sum() as isize;
-                unique_children_unions[i] += best_adjacency.sum() as isize;
-                let similarity = (unique_children_intersections[i] as f64) / (unique_children_unions[i] as f64);
-                unique_children_adjusted_scores[i] = ((unique_children_summaries[i] as f64) * (1.0 - similarity)) as isize;
+                let similarity = calculate_similarity(adjacency, best_adjacency);
+                let adjusted = ((unique_children_summaries[i] as f64) * (1.0 - similarity)) as isize;
+                if adjusted < unique_children_adjusted_scores[i] {
+                    unique_children_adjusted_scores[i] = adjusted;
+                }
                 debug!("This grid raw score {}, similarity {}, adjusted {}:\n{}",
                       unique_children_summaries[i],
                       similarity,
