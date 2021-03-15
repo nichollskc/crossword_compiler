@@ -24,6 +24,12 @@ fn cell_to_i16(cell: &Cell) -> i16 {
     }
 }
 
+struct CrosswordGridMatrixCompatability {
+    row_shift: isize,
+    col_shift: isize,
+    compatible: bool,
+}
+
 #[derive(Debug)]
 struct CrosswordGridMatrix {
     matrix: Array2<i16>,
@@ -79,15 +85,27 @@ impl CrosswordGridMatrix {
         }
     }
 
-    pub fn compatible_with_matrix(&self, other: &CrosswordGridMatrix, other_row_shift: isize, other_col_shift: isize) -> bool {
-        let other_shifted = other.shifted(other_row_shift as usize,
-                                          other_col_shift as usize);
+    pub fn compatible_with_matrix(&self,
+                                  other: &CrosswordGridMatrix,
+                                  other_row_shift: isize,
+                                  other_col_shift: isize) -> bool {
+        self.assess_compatability(other, other_row_shift, other_col_shift).compatible
+    }
 
-        let max_rows = cmp::max(self.nrows, other_shifted.nrows);
-        let max_cols = cmp::max(self.ncols, other_shifted.ncols);
+    fn assess_compatability(&self,
+                            other: &CrosswordGridMatrix,
+                            other_row_shift: isize,
+                            other_col_shift: isize) -> CrosswordGridMatrixCompatability {
+        let shifted1 = self.shifted(cmp::max(0, - other_row_shift) as usize,
+                                    cmp::max(0, - other_col_shift) as usize);
+        let shifted2 = other.shifted(cmp::max(0, other_row_shift) as usize,
+                                     cmp::max(0, other_col_shift) as usize);
 
-        let padded1 = self.padded_to_size(max_rows, max_cols);
-        let padded2 = other_shifted.padded_to_size(max_rows, max_cols);
+        let max_rows = cmp::max(shifted1.nrows, shifted2.nrows);
+        let max_cols = cmp::max(shifted1.ncols, shifted2.ncols);
+
+        let padded1 = shifted1.padded_to_size(max_rows, max_cols);
+        let padded2 = shifted2.padded_to_size(max_rows, max_cols);
 
         debug!("{:#?}\n{:#?}", padded1, padded2);
         let nonempty_cells_shared: Array2<i16> = &padded1.matrix * &padded2.matrix;
@@ -95,10 +113,31 @@ impl CrosswordGridMatrix {
         debug!("Cells shared: {:#?}", nonempty_cells_shared);
         debug!("Cells mismatched: {:#?}", cells_mismatch);
 
+        let grids_overlap = ((nonempty_cells_shared.iter().filter(|x| **x > 1)).count() != 0);
+
         let cells_shared_and_mismatched = nonempty_cells_shared * cells_mismatch;
+        let no_mismatches = (cells_shared_and_mismatched.sum() == 0);
         debug!("Cells shared and mismatched: {:#?}", cells_shared_and_mismatched);
 
-        cells_shared_and_mismatched.sum() == 0
+        CrosswordGridMatrixCompatability {
+            row_shift: other_row_shift,
+            col_shift: other_col_shift,
+            compatible: grids_overlap && no_mismatches,
+        }
+    }
+
+    pub fn find_best_compatible_configuration(&self, other: &CrosswordGridMatrix) -> Option<(isize, isize)> {
+        let min_row_shift = - (other.nrows as isize);
+        let min_col_shift = - (other.ncols as isize);
+        let max_row_shift = self.nrows as isize;
+        let max_col_shift = self.ncols as isize;
+
+        for row_shift in min_row_shift..=max_row_shift {
+            for col_shift in min_col_shift..=max_col_shift {
+                let result = self.compatible_with_matrix(other, row_shift, col_shift);
+            }
+        }
+        None
     }
 }
 
@@ -169,7 +208,29 @@ mod tests {
         println!("{:#?}", bee_grid.to_matrix());
         println!("{:#?}", bear_grid.to_matrix());
 
+        // Check specific matches
         assert!(bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), 0, 0));
+        assert!(bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), -1, 2));
+        assert!(bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), -1, 1));
+        assert!(!bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), 1, 1));
+        assert!(!bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), 1, 2));
         assert!(!bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), 0, 1));
+
+        // Check the total number of compatible grids possible
+        let mut compatible_versions = 0;
+        for i in -5..5 {
+            for j in -5..5 {
+                let is_compatible = bee_grid.to_matrix().compatible_with_matrix(&bear_grid.to_matrix(), i, j);
+                if is_compatible {
+                    compatible_versions += 1;
+                }
+                // Also check that the opposite setup (switching place of bee and bear) has the
+                // same result
+                assert_eq!(is_compatible,
+                           bear_grid.to_matrix().compatible_with_matrix(&bee_grid.to_matrix(), -i, -j));
+
+            }
+        }
+        assert_eq!(compatible_versions, 3);
     }
 }
