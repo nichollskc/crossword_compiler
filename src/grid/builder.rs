@@ -53,6 +53,9 @@ impl CrosswordGridBuilder {
                 self.row += 1;
                 self.max_col = cmp::max(self.max_col, self.col);
                 self.col = 0;
+
+                // End the across word
+                self.current_across_word_id = None;
             } else {
                 if self.row == 0 {
                     self.current_down_word_ids.insert(self.col, None);
@@ -113,6 +116,7 @@ impl CrosswordGridBuilder {
 
         grid.check_valid();
         grid.fit_to_size();
+        grid.fill_black_cells();
         grid
     }
 }
