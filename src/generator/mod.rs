@@ -10,11 +10,13 @@ use rand::rngs::StdRng;
 use ndarray::Array2;
 
 use crate::grid::CrosswordGrid;
+use crate::custom_hashmap_format;
 
 mod stats;
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 enum MoveType {
+    Partition,
     PlaceWord,
     PruneLeaves,
 }
@@ -106,21 +108,37 @@ impl fmt::Display for CrosswordGridScore {
 struct CrosswordGridAttempt {
     grid: CrosswordGrid,
     score: CrosswordGridScore,
+    move_counts: HashMap<MoveType, f64>,
     summary_score: isize,
 }
 
 impl CrosswordGridAttempt {
     fn new(grid: CrosswordGrid, settings: &CrosswordGeneratorSettings) -> Self {
         let score = CrosswordGridAttempt::score_grid(&grid, settings);
+        let mut move_counts: HashMap<MoveType, f64> = HashMap::new();
+        move_counts.insert(MoveType::PlaceWord, 0.0);
+        move_counts.insert(MoveType::PruneLeaves, 0.0);
+        move_counts.insert(MoveType::Partition, 0.0);
         CrosswordGridAttempt {
             summary_score: score.summary as isize,
             score,
             grid,
+            move_counts,
         }
     }
 
     fn score_grid(grid: &CrosswordGrid, settings: &CrosswordGeneratorSettings) -> CrosswordGridScore {
         CrosswordGridScore::new(grid, settings)
+    }
+
+    fn increment_move_count(&mut self, move_type: MoveType) {
+        *self.move_counts.get_mut(&move_type).unwrap() += 1.0;
+    }
+
+    fn update_score(&mut self, settings: &CrosswordGeneratorSettings) {
+        let score = CrosswordGridAttempt::score_grid(&self.grid, settings);
+        self.score = score;
+        self.summary_score = score.summary as isize;
     }
 }
 
@@ -219,7 +237,7 @@ impl CrosswordGenerator {
     }
 
     fn produce_child(&self, grid_attempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
-        let mut copied = grid_attempt.grid.clone();
+        let mut copied = grid_attempt.clone();
         let mut moves = 0;
         let mut success = true;
         while success && moves < self.settings.moves_between_scores {
@@ -228,27 +246,41 @@ impl CrosswordGenerator {
             debug!("Picked move {:?}", random_move);
             match random_move {
                 MoveType::PlaceWord => {
-                    success = copied.place_random_word(extended_seed);
+                    success = copied.grid.place_random_word(extended_seed);
+                    if success {
+                        copied.increment_move_count(MoveType::PlaceWord);
+                    }
                 },
                 MoveType::PruneLeaves => {
-                    copied.remove_random_leaves(1, extended_seed);
+                    copied.grid.remove_random_leaves(1, extended_seed);
+                    if success {
+                        copied.increment_move_count(MoveType::PruneLeaves);
+                    }
                 },
+                MoveType::Partition => {
+                    panic!("Not expecting to choose partition");
+                }
             }
             moves += 1;
         }
-        CrosswordGridAttempt::new(copied, &self.settings)
+        copied.update_score(&self.settings);
+        copied
     }
 
     fn fill_grid(&self, grid_attempt: &CrosswordGridAttempt, seed: u64) -> CrosswordGridAttempt {
-        let mut copied = grid_attempt.grid.clone();
+        let mut copied = grid_attempt.clone();
         let mut moves = 0;
         let mut success = true;
         while success {
             let extended_seed: u64 = seed.wrapping_add(moves as u64);
-            success = copied.place_random_word(extended_seed);
+            success = copied.grid.place_random_word(extended_seed);
+            if success {
+                copied.increment_move_count(MoveType::PlaceWord);
+            }
             moves += 1;
         }
-        CrosswordGridAttempt::new(copied, &self.settings)
+        copied.update_score(&self.settings);
+        copied
     }
 
     fn next_generation(&mut self) {
@@ -264,13 +296,19 @@ impl CrosswordGenerator {
             }
 
             for i in 0..self.settings.num_children {
-                let mut copied = grid_attempt.grid.clone();
-                if copied.count_placed_words() > 1 {
-                    let other_half = copied.random_partition(seed);
+                let mut copied = grid_attempt.clone();
+                if copied.grid.count_placed_words() > 1 {
+                    let other_half_grid = copied.grid.random_partition(seed);
+                    let mut other_half = grid_attempt.clone();
+                    other_half.grid = other_half_grid;
                     debug!("Partitioned graph {}\n{}\n{}\nPartitioned graph over",
-                            grid_attempt.grid.to_string(), copied.to_string(), other_half.to_string());
-                    self.next_generation_ancestors.push(CrosswordGridAttempt::new(copied, &self.settings));
-                    self.next_generation_ancestors.push(CrosswordGridAttempt::new(other_half, &self.settings));
+                            grid_attempt.grid.to_string(), copied.grid.to_string(), other_half.grid.to_string());
+                    copied.increment_move_count(MoveType::Partition);
+                    other_half.increment_move_count(MoveType::Partition);
+                    copied.update_score(&self.settings);
+                    other_half.update_score(&self.settings);
+                    self.next_generation_ancestors.push(copied);
+                    self.next_generation_ancestors.push(other_half);
                 }
             }
         }
@@ -396,6 +434,11 @@ impl CrosswordGenerator {
         stringified
     }
 
+    fn average_move_counts(&self) -> HashMap<MoveType, f64> {
+        let all_move_counts = self.current_generation_complete.iter().map(|x| x.move_counts.clone()).collect();
+        stats::mean_of_hashmaps(all_move_counts)
+    }
+
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
         let mut best_score: isize = self.get_current_best_score();
         let mut reached_convergence: bool = false;
@@ -407,6 +450,12 @@ impl CrosswordGenerator {
             best_score = self.get_current_best_score();
             info!("Round {}. Average score is {}", self.round, self.get_average_scores());
             info!("Round {}. Current best score is {:?}", self.round, best_score);
+            info!("Round {}. Move counts of best is {}", self.round, custom_hashmap_format(&self.current_generation_complete[0].move_counts,
+                                                                                           "best_count",
+                                                                                           ":: "));
+            info!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts(),
+                                                                                        "average_count",
+                                                                                        ":: "));
 
             let this_generation_stringified = self.stringified_output();
             info!("This generation:\n{}", this_generation_stringified);

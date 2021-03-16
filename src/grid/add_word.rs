@@ -25,7 +25,7 @@ impl CrosswordGrid {
                     if let Some(cell) = self.cell_map.get_mut(&cell_location) {
                         cell.set_black();
                     } else {
-                        panic!("Cell doesn't exist! {:#?}, {:#?}", cell_location, word);
+                        panic!("Cell doesn't exist! {:#?}, {:#?}\n{:#?}", cell_location, word, self);
                     }
                 }
             }
