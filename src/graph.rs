@@ -1,7 +1,7 @@
 use log::{warn,debug};
 use std::collections::{HashSet,HashMap,VecDeque};
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 struct Node {
     // Original ID given to the node
     node_id: usize,
@@ -20,9 +20,13 @@ impl Node {
     fn add_edge(&mut self, neighbour_id: usize) {
         self.connected_nodes.insert(neighbour_id);
     }
+
+    fn remove_edge(&mut self, neighbour_id: usize) {
+        self.connected_nodes.remove(&neighbour_id);
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone,Debug)]
 pub struct Graph {
     // Node storage
     node_storage: Vec<Node>,
@@ -97,8 +101,12 @@ impl Graph {
     }
 
     fn traverse_count_node_visits(&self) -> HashMap<usize, usize> {
-        let mut node_visits: HashMap<usize, usize> = HashMap::new();
         let node_id = self.node_storage[0].node_id;
+        self.traverse_count_node_visits_from_node(node_id)
+    }
+
+    fn traverse_count_node_visits_from_node(&self, node_id: usize) -> HashMap<usize, usize> {
+        let mut node_visits: HashMap<usize, usize> = HashMap::new();
         node_visits.insert(node_id, 1);
 
         let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
@@ -234,6 +242,38 @@ impl Graph {
         second_node_vec.sort();
         (first_node_vec, second_node_vec)
     }
+
+    fn first_node_not_in_set(&self, forbidden_nodes: &HashSet<usize>) -> Option<usize> {
+        let mut allowed_nodes: Vec<usize> = self.node_map.keys().filter(|n| !forbidden_nodes.contains(n)).cloned().collect();
+        allowed_nodes.sort();
+        allowed_nodes.reverse();
+        allowed_nodes.pop()
+    }
+
+    pub fn components_after_deleting_node(&mut self, node_id: usize) -> Vec<Vec<usize>> {
+        let connected_nodes = self.get_node(node_id).unwrap().connected_nodes.clone();
+        for neighbour_id in connected_nodes.iter() {
+            let neighbour = self.get_node_mut(*neighbour_id).unwrap();
+            neighbour.remove_edge(node_id);
+        }
+        self.get_node_mut(node_id).unwrap().connected_nodes = HashSet::new();
+
+        let mut components: Vec<Vec<usize>> = vec![];
+        let mut nodes_visited: HashSet<usize> = HashSet::new();
+        nodes_visited.insert(node_id);
+
+        while let Some(unvisited_node_id) = self.first_node_not_in_set(&nodes_visited) {
+            let node_visits = self.traverse_count_node_visits_from_node(unvisited_node_id);
+            let mut component: Vec<usize> = vec![];
+            for node_id in node_visits.keys() {
+                component.push(*node_id);
+                nodes_visited.insert(*node_id);
+            }
+            component.sort();
+            components.push(component);
+        }
+        components
+    }
 }
 
 #[cfg(test)]
@@ -363,5 +403,23 @@ mod tests {
                 assert!(second_graph.is_connected());
             }
         }
+    }
+
+    #[test]
+    fn test_components_after_node_removal() {
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
+        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4]]);
+
+        let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0), (0, 5)]);
+        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4, 5]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4], vec![5]]);
+
+        let mut graph = Graph::new_from_edges(vec![(0, 1)]);
+        println!("{:#?}", graph);
+        assert_eq!(graph.components_after_deleting_node(0), vec![vec![1]]);
+        println!("{:#?}", graph);
+        // This doesn't happen - the node 0 is still present, just not connected to anything
+        //assert_eq!(graph.components_after_deleting_node(1), Vec::<Vec<usize>>::new());
     }
 }
