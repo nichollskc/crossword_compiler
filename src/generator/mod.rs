@@ -21,13 +21,18 @@ enum MoveType {
     PruneLeaves,
 }
 
-fn generate_move_types_vec(place_word_weight: usize, prune_leaves_weight: usize) -> Vec<MoveType> {
+fn generate_move_types_vec(place_word_weight: usize,
+                           prune_leaves_weight: usize,
+                           partiton_weight: usize) -> Vec<MoveType> {
     let mut move_types = vec![];
     for _ in 0..place_word_weight {
         move_types.push(MoveType::PlaceWord);
     }
     for _ in 0..prune_leaves_weight {
         move_types.push(MoveType::PruneLeaves);
+    }
+    for _ in 0..partiton_weight {
+        move_types.push(MoveType::Partition);
     }
 
     move_types
@@ -180,7 +185,7 @@ impl CrosswordGeneratorSettings {
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
             weight_avg_intersect: *settings.get("weight-avg-intersect").unwrap_or(&5000),
             weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
-            move_types: generate_move_types_vec(3, 1),
+            move_types: generate_move_types_vec(6, 2, 1),
         }
     }
 }
@@ -231,6 +236,23 @@ impl CrosswordGenerator {
         }
     }
 
+    fn attempt_partition(&self, grid_attempt: &mut CrosswordGridAttempt, seed: u64) {
+        if grid_attempt.grid.count_placed_words() > 1 {
+            let other_half_grid = grid_attempt.grid.random_partition(seed);
+            let mut other_half = grid_attempt.clone();
+            other_half.grid = other_half_grid;
+
+            grid_attempt.increment_move_count(MoveType::Partition);
+            other_half.increment_move_count(MoveType::Partition);
+            other_half.update_score(&self.settings);
+            grid_attempt.update_score(&self.settings);
+
+            if other_half.summary_score > grid_attempt.summary_score {
+                *grid_attempt = other_half
+            }
+        }
+    }
+
     fn choose_random_move_type(&self, seed: u64) -> MoveType {
         let mut rng = StdRng::seed_from_u64(self.settings.seed.wrapping_add(seed));
         *self.settings.move_types.choose(&mut rng).unwrap()
@@ -253,12 +275,10 @@ impl CrosswordGenerator {
                 },
                 MoveType::PruneLeaves => {
                     copied.grid.remove_random_leaves(1, extended_seed);
-                    if success {
-                        copied.increment_move_count(MoveType::PruneLeaves);
-                    }
+                    copied.increment_move_count(MoveType::PruneLeaves);
                 },
                 MoveType::Partition => {
-                    panic!("Not expecting to choose partition");
+                    self.attempt_partition(&mut copied, extended_seed);
                 }
             }
             moves += 1;
@@ -293,23 +313,6 @@ impl CrosswordGenerator {
             for child_index in 0..self.settings.num_children {
                 let child = self.produce_child(&grid_attempt, seed.wrapping_add(child_index as u64));
                 self.next_generation_ancestors.push(child);
-            }
-
-            for i in 0..self.settings.num_children {
-                let mut copied = grid_attempt.clone();
-                if copied.grid.count_placed_words() > 1 {
-                    let other_half_grid = copied.grid.random_partition(seed);
-                    let mut other_half = grid_attempt.clone();
-                    other_half.grid = other_half_grid;
-                    debug!("Partitioned graph {}\n{}\n{}\nPartitioned graph over",
-                            grid_attempt.grid.to_string(), copied.grid.to_string(), other_half.grid.to_string());
-                    copied.increment_move_count(MoveType::Partition);
-                    other_half.increment_move_count(MoveType::Partition);
-                    copied.update_score(&self.settings);
-                    other_half.update_score(&self.settings);
-                    self.next_generation_ancestors.push(copied);
-                    self.next_generation_ancestors.push(other_half);
-                }
             }
         }
         info!("GENERATED ANCESTORS. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
