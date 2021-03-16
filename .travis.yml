@@ -10,6 +10,7 @@ matrix:
 
 script:
     - export CODECOV_TOKEN="2f8d9a99-6bb4-47f7-88ce-a770ae4172fd"
+    - export RUST_LOG=crossword=debug
     - rustup component add llvm-tools-preview
     - export RUSTFLAGS="-Zinstrument-coverage"
     - cargo build --verbose
