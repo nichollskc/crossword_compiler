@@ -44,23 +44,34 @@ impl CrosswordGrid {
 mod tests {
     use super::*;
     use super::super::CrosswordGridBuilder;
+    use super::super::Direction;
+
+    fn setup_merge() -> (CrosswordGrid, CrosswordGrid) {
+        let mut grid1 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
+        let mut grid2 = CrosswordGrid::new_single_word("SIXTY");
+        grid2.update_word_id(0, 100);
+        let rusty_id = grid2.add_unplaced_word("RUSTY", "", None);
+        grid2.update_word_id(rusty_id, 101);
+        let trout_id = grid2.add_unplaced_word("TROUT", "", None);
+        grid2.update_word_id(trout_id, 102);
+
+        println!("{:#?}", grid2);
+        assert!(grid2.try_place_word_in_cell_connected(Location(0, 4), 101, 4, Direction::Down));
+        assert!(grid2.try_place_word_in_cell_connected(Location(0, 3), 102, 0, Direction::Down));
+        
+        grid1.add_unplaced_word_at_id("SIXTY", "", 100, None);
+        grid1.add_unplaced_word_at_id("RUSTY", "", 101, None); 
+        grid1.add_unplaced_word_at_id("TROUT", "", 102, None);
+        println!("{:#?}", grid1);
+        println!("{:#?}", grid2);
+        (grid1, grid2)
+    }
 
     #[test]
     fn test_merge() {
         crate::logging::init_logger(true);
-        let mut grid1 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
-        let mut grid2 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_compatible.txt");
-        println!("{:#?}", grid1);
-        println!("{:#?}", grid2);
-        grid2.update_word_id(1, 101);
-        grid2.update_word_id(5, 105);
-        grid2.update_word_id(9, 109);
-        println!("{:#?}", grid2);
-        
-        grid1.add_unplaced_word_at_id("RUSTY", "", 101, None); 
-        grid1.add_unplaced_word_at_id("SIXTY", "", 105, None);
-        grid1.add_unplaced_word_at_id("TROUT", "", 109, None);
-        grid1.merge_with_grid(&grid2, -2, 2);
+        let (mut grid1, grid2) = setup_merge();
+        grid1.merge_with_grid(&grid2, 2, 2);
         println!("{}", grid1.to_string());
     }
 

@@ -231,8 +231,8 @@ impl CrosswordGrid {
                     let cell = self.cell_map.get_mut(&updated_location).unwrap();
                     cell.remove_word(word_id);
                 }
+                self.fit_to_size();
             }
-            self.fit_to_size();
         } else {
             debug!("Failed since cell is not open");
             success = false;
