@@ -28,6 +28,7 @@ struct CrosswordGridMatrixCompatability {
     row_shift: isize,
     col_shift: isize,
     compatible: bool,
+    num_overlaps: usize,
 }
 
 #[derive(Debug)]
@@ -113,7 +114,8 @@ impl CrosswordGridMatrix {
         debug!("Cells shared: {:#?}", nonempty_cells_shared);
         debug!("Cells mismatched: {:#?}", cells_mismatch);
 
-        let grids_overlap = ((nonempty_cells_shared.iter().filter(|x| **x > 1)).count() != 0);
+        let num_overlaps = (nonempty_cells_shared.iter().filter(|x| **x > 1)).count();
+        let grids_overlap = (num_overlaps != 0);
 
         let cells_shared_and_mismatched = nonempty_cells_shared * cells_mismatch;
         let no_mismatches = (cells_shared_and_mismatched.sum() == 0);
@@ -122,6 +124,7 @@ impl CrosswordGridMatrix {
         CrosswordGridMatrixCompatability {
             row_shift: other_row_shift,
             col_shift: other_col_shift,
+            num_overlaps,
             compatible: grids_overlap && no_mismatches,
         }
     }
@@ -132,30 +135,44 @@ impl CrosswordGridMatrix {
         let max_row_shift = self.nrows as isize;
         let max_col_shift = self.ncols as isize;
 
+        let mut best_result: Option<CrosswordGridMatrixCompatability> = None;
+
         for row_shift in min_row_shift..=max_row_shift {
             for col_shift in min_col_shift..=max_col_shift {
-                let result = self.compatible_with_matrix(other, row_shift, col_shift);
+                let result = self.assess_compatability(other, row_shift, col_shift);
+                if let Some(ref best) = best_result {
+                    if result.compatible && best.num_overlaps < result.num_overlaps {
+                        best_result = Some(result);
+                    }
+                } else {
+                    best_result = Some(result);
+                }
             }
         }
-        None
+
+        if let Some(result) = best_result {
+            Some((result.row_shift, result.col_shift))   
+        } else {
+            None
+        }
     }
 }
 
 impl CrosswordGrid {
     fn to_matrix(&self) -> CrosswordGridMatrix {
-        let mut row: isize = self.top_left_cell_index.0 + 1;
-        let mut col: isize = self.top_left_cell_index.1 + 1;
+        let mut row: isize = self.top_left_cell_index.0;
+        let mut col: isize = self.top_left_cell_index.1;
 
-        let (nrows, ncols) = self.get_grid_dimensions();
+        let (nrows, ncols) = self.get_grid_dimensions_with_buffer();
         let mut matrix = CrosswordGridMatrix::empty(nrows, ncols, -row, -col);
 
-        while row < self.bottom_right_cell_index.0 {
-            while col < self.bottom_right_cell_index.1 {
+        while row <= self.bottom_right_cell_index.0 {
+            while col <= self.bottom_right_cell_index.1 {
                 let cell = self.cell_map.get(&Location(row, col)).unwrap();
                 matrix.set_coord(row, col, cell_to_i16(cell));
                 col += 1;
             }
-            col = self.top_left_cell_index.1 + 1;
+            col = self.top_left_cell_index.1;
             row += 1;
         }
         matrix
@@ -232,5 +249,21 @@ mod tests {
             }
         }
         assert_eq!(compatible_versions, 3);
+    }
+
+    #[test]
+    fn test_matrix_best_compatible() {
+        let grid1 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
+        let grid2 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_compatible.txt");
+        let grid3 = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
+        println!("{:#?}", grid1.to_matrix());
+        println!("{:#?}", grid2.to_matrix());
+        println!("{:#?}", grid3.to_matrix());
+
+        assert_eq!(Some((2,2)), grid1.to_matrix().find_best_compatible_configuration(&grid2.to_matrix()));
+        assert_eq!(Some((-2,-2)), grid2.to_matrix().find_best_compatible_configuration(&grid1.to_matrix()));
+
+        assert_eq!(None, grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
+        assert_eq!(None, grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
     }
 }

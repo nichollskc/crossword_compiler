@@ -25,6 +25,12 @@ impl CrosswordGrid {
         intersections
     }
 
+    pub fn get_grid_dimensions_with_buffer(&self) -> (usize, usize) {
+        let nrows: usize = (self.bottom_right_cell_index.0 - self.top_left_cell_index.0 + 1) as usize;
+        let ncols: usize = (self.bottom_right_cell_index.1 - self.top_left_cell_index.1 + 1) as usize;
+        (nrows, ncols)
+    }
+
     pub fn get_grid_dimensions(&self) -> (usize, usize) {
         let nrows: usize = (self.bottom_right_cell_index.0 - self.top_left_cell_index.0 - 1) as usize;
         let ncols: usize = (self.bottom_right_cell_index.1 - self.top_left_cell_index.1 - 1) as usize;

@@ -7,7 +7,7 @@ use super::Direction;
 use super::Word;
 
 impl CrosswordGrid {
-    fn fill_black_cells(&mut self) {
+    pub fn fill_black_cells(&mut self) {
         // Clear black cells before starting
         for (_location, cell) in self.cell_map.iter_mut() {
             if cell.is_black() {
