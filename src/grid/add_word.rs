@@ -110,6 +110,7 @@ impl CrosswordGrid {
     }
 
     fn cell_is_open(&self, location: Location, direction: Direction, allow_empty: bool) -> bool {
+        debug!("Checking if cell {:?} is open {:?}", location, direction);
         if !allow_empty && !self.cell_map.get(&location).unwrap().contains_letter() {
             // If the cell is empty, it cannot be added to - it is not an open cell
             false

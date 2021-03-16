@@ -9,13 +9,14 @@ impl CrosswordGrid {
         self.grow_to_fit_merge(other, row_shift, col_shift);
 
         for (word_id, other_word) in other.word_map.iter() {
+            debug!("Attempting to add word {:?} to grid\n{:?}", other_word, self);
             if let Some((start_location, _, direction)) = other_word.get_location() {
                 let this_word = self.word_map.get(word_id).unwrap();
                 assert!(!this_word.is_placed());
 
                 let shifted_location = start_location.relative_location(row_shift, col_shift);
                 let success = self.try_place_word_in_cell(shifted_location, *word_id, 0, direction, true);
-                assert!(success);
+                assert!(success, "Failed to place word {} in location {:?}. Other word: {:?}", word_id, shifted_location, other_word);
             }
         }
         self.check_valid();
@@ -32,9 +33,11 @@ impl CrosswordGrid {
                                self.bottom_right_cell_index.1);
         let new_top_left = Location(min_row, min_col);
         let new_bottom_right = Location(max_row, max_col);
+        debug!("Expanding to fit to cells {:?} {:?}", new_top_left, new_bottom_right);
 
         self.expand_to_fit_cell(new_top_left);
         self.expand_to_fit_cell(new_bottom_right);
+        debug!("{:?}", self);
     }
 }
 
@@ -73,6 +76,22 @@ mod tests {
         let (mut grid1, grid2) = setup_merge();
         grid1.merge_with_grid(&grid2, 2, 2);
         println!("{}", grid1.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_disconnected() {
+        crate::logging::init_logger(true);
+        let (mut grid1, grid2) = setup_merge();
+        grid1.merge_with_grid(&grid2, -10, -10);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_mismatch() {
+        crate::logging::init_logger(true);
+        let (mut grid1, grid2) = setup_merge();
+        grid1.merge_with_grid(&grid2, 3, 0);
     }
 
 }
