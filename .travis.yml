@@ -1,0 +1,7 @@
+env:
+  global:
+    - CARGO_MAKE_RUN_CODECOV="true"
+cache: cargo
+script:
+  - which cargo-make || cargo install cargo-make
+  - cargo make ci-flow
