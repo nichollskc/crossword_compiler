@@ -24,6 +24,7 @@ fn cell_to_i16(cell: &Cell) -> i16 {
     }
 }
 
+#[derive(Debug)]
 struct CrosswordGridMatrixCompatability {
     row_shift: isize,
     col_shift: isize,
@@ -118,7 +119,7 @@ impl CrosswordGridMatrix {
         let grids_overlap = (num_overlaps != 0);
 
         let cells_shared_and_mismatched = nonempty_cells_shared * cells_mismatch;
-        let no_mismatches = (cells_shared_and_mismatched.sum() == 0);
+        let no_mismatches = (cells_shared_and_mismatched.iter().filter(|x| **x != 0).count() == 0);
         debug!("Cells shared and mismatched: {:#?}", cells_shared_and_mismatched);
 
         CrosswordGridMatrixCompatability {
@@ -140,13 +141,17 @@ impl CrosswordGridMatrix {
         for row_shift in min_row_shift..=max_row_shift {
             for col_shift in min_col_shift..=max_col_shift {
                 let result = self.assess_compatability(other, row_shift, col_shift);
-                if let Some(ref best) = best_result {
-                    if result.compatible && best.num_overlaps < result.num_overlaps {
+                debug!("Tried {} {}:\n{:#?}", row_shift, col_shift, result);
+                if result.compatible {
+                    if let Some(ref best) = best_result {
+                        if best.num_overlaps < result.num_overlaps {
+                            best_result = Some(result);
+                        }
+                    } else {
                         best_result = Some(result);
                     }
-                } else {
-                    best_result = Some(result);
                 }
+                debug!("Current best: {:#?}", best_result);
             }
         }
 
@@ -253,6 +258,8 @@ mod tests {
 
     #[test]
     fn test_matrix_best_compatible() {
+        crate::logging::init_logger(true);
+
         let grid1 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
         let grid2 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_compatible.txt");
         let grid3 = CrosswordGridBuilder::new().from_file("tests/resources/built_up.txt");
@@ -260,10 +267,10 @@ mod tests {
         println!("{:#?}", grid2.to_matrix());
         println!("{:#?}", grid3.to_matrix());
 
-        assert_eq!(Some((2,2)), grid1.to_matrix().find_best_compatible_configuration(&grid2.to_matrix()));
-        assert_eq!(Some((-2,-2)), grid2.to_matrix().find_best_compatible_configuration(&grid1.to_matrix()));
+        assert_eq!(Some((-2, 2)), grid1.to_matrix().find_best_compatible_configuration(&grid2.to_matrix()));
+        assert_eq!(Some(( 2,-2)), grid2.to_matrix().find_best_compatible_configuration(&grid1.to_matrix()));
 
-        assert_eq!(None, grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
-        assert_eq!(None, grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
+        assert_eq!(Some((-3, -2)), grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
+        assert_eq!(None, grid1.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
     }
 }
