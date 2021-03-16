@@ -1,4 +1,4 @@
-use log::{info,debug};
+use log::debug;
 
 use super::CrosswordGrid;
 use super::Location;

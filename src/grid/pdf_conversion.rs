@@ -110,7 +110,7 @@ impl CrosswordPrinter {
 
     pub fn print_to_pdf(&mut self, filename_root: &str) {
         let tex_file = format!("{}.tex", filename_root);
-        let pdf_file = format!("{}.pdf", filename_root);
+        //let pdf_file = format!("{}.pdf", filename_root);
         self.print_to_file(&tex_file);
         Command::new("pdflatex")
             .arg("-output-directory")

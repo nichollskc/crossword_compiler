@@ -1,4 +1,4 @@
-use log::{info,debug};
+use log::debug;
 
 use super::CrosswordGrid;
 use super::Location;
@@ -328,7 +328,7 @@ mod tests {
         assert!(!grid.try_place_word_in_cell(Location(-2, 2), cap_word_id, 0, Direction::Across));
         grid.check_valid();
         assert_eq!(before_failure, grid.to_string());
-        info!("{}", grid.to_string());
+        debug!("{}", grid.to_string());
 
         debug!("{:#?}", grid);
         assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, Direction::Across));

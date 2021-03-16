@@ -1,4 +1,4 @@
-use log::{debug,info,warn};
+use log::{debug,warn};
 use std::fmt;
 
 use super::Direction;

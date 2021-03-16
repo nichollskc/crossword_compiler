@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[macro_use]
 extern crate clap;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App,Arg};
 
 use crossword;
 
@@ -15,7 +15,6 @@ fn main() {
                          "weight-num-intersect", "weight-avg-intersect", "weight-words-placed"];
     let mut setting_args: Vec<Arg> = vec![];
     for setting_name in setting_names.iter() {
-        let full_name = format!("--{}", setting_name);
         setting_args.push(Arg::with_name(&setting_name).long(&setting_name).takes_value(true));
     }
 

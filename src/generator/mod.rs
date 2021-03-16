@@ -65,7 +65,7 @@ impl CrosswordGridScore {
         let (nrows, ncols) = grid.get_grid_dimensions();
         let total_cells = nrows * ncols;
         let non_square_penalty: usize = cmp::max(nrows, ncols).pow(2) - total_cells;
-        let filled_cells: f64 = (grid.count_filled_cells() as f64);
+        let filled_cells: f64 = grid.count_filled_cells() as f64;
         let proportion_filled: f64 = filled_cells / (total_cells as f64);
         let words_placed: f64 = grid.count_placed_words() as f64;
         let words_unplaced: f64 = grid.count_unplaced_words() as f64;

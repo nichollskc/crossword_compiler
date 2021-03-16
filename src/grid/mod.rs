@@ -1,5 +1,5 @@
 use crate::graph::Graph;
-use log::{info,debug};
+use log::debug;
 use std::collections::HashMap;
 use std::fmt;
 use ndarray::Array2;
@@ -113,7 +113,7 @@ impl CrosswordGrid {
                 down_id = Some(word_id);
             },
         };
-        let mut word = word_map.get_mut(&word_id).unwrap();
+        let word = word_map.get_mut(&word_id).unwrap();
         word.update_location(location, direction);
         for c in word.word_text.chars() {
             cell_map.insert(location, Cell::new(c, across_id, down_id));
@@ -277,7 +277,7 @@ mod tests {
         let bear_word_id = grid.add_unplaced_word("BEARER", "", None);
         let innards_word_id = grid.add_unplaced_word("INNARDS", "", None);
         let cup_word_id = grid.add_unplaced_word("CUP", "", None);
-        let cap_word_id = grid.add_unplaced_word("CAP", "", None);
+        grid.add_unplaced_word("CAP", "", None);
         grid.check_valid();
         debug!("{:#?}", grid);
 

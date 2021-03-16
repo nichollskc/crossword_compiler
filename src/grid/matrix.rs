@@ -1,4 +1,4 @@
-use log::{info,debug};
+use log::debug;
 use std::cmp;
 
 use ndarray::{Array,ArrayView,Array2};
@@ -116,10 +116,10 @@ impl CrosswordGridMatrix {
         debug!("Cells mismatched: {:#?}", cells_mismatch);
 
         let num_overlaps = (nonempty_cells_shared.iter().filter(|x| **x > 1)).count();
-        let grids_overlap = (num_overlaps != 0);
+        let grids_overlap = num_overlaps != 0;
 
         let cells_shared_and_mismatched = nonempty_cells_shared * cells_mismatch;
-        let no_mismatches = (cells_shared_and_mismatched.iter().filter(|x| **x != 0).count() == 0);
+        let no_mismatches = cells_shared_and_mismatched.iter().filter(|x| **x != 0).count() == 0;
         debug!("Cells shared and mismatched: {:#?}", cells_shared_and_mismatched);
 
         CrosswordGridMatrixCompatability {
