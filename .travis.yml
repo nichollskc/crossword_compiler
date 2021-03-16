@@ -1,13 +1,17 @@
 language: rust
-rust:
-  - 1.0.0
-env:
-  global:
-    - CARGO_MAKE_RUN_CODECOV="true"
-cache: cargo
+
+before_install:
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+
+matrix:
+  include:
+    - os: linux
+      rust: nightly
+
 script:
-  - cargo test
-  - which cargo-make
-  - cargo install cargo-make
-  - which cargo-make || cargo install cargo-make
-  - cargo make ci-flow
+    - rustup component add llvm-tools-preview
+    - export RUSTFLAGS="-Zinstrument-coverage"
+    - cargo build --verbose
+    - LLVM_PROFILE_FILE="kcn-%p-%m.profraw" cargo test --verbose
+    - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+    - bash <(curl -s https://codecov.io/bash) -f lcov.info
