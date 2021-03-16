@@ -14,6 +14,7 @@ mod spacing;
 mod properties;
 mod pdf_conversion;
 mod matrix;
+mod recombination;
 
 use word::Word;
 use cell::Cell;
@@ -281,10 +282,10 @@ mod tests {
         grid.check_valid();
         debug!("{:#?}", grid);
 
-        assert!(grid.try_place_word_in_cell(Location(0, 0), arrival_word_id, 0, Direction::Down));
-        assert!(grid.try_place_word_in_cell(Location(0, 4), bear_word_id, 2, Direction::Down));
-        assert!(grid.try_place_word_in_cell(Location(0, 2), cup_word_id, 2, Direction::Down));
-        assert!(grid.try_place_word_in_cell(Location(3, 0), innards_word_id, 0, Direction::Across));
+        assert!(grid.try_place_word_in_cell_connected(Location(0, 0), arrival_word_id, 0, Direction::Down));
+        assert!(grid.try_place_word_in_cell_connected(Location(0, 4), bear_word_id, 2, Direction::Down));
+        assert!(grid.try_place_word_in_cell_connected(Location(0, 2), cup_word_id, 2, Direction::Down));
+        assert!(grid.try_place_word_in_cell_connected(Location(3, 0), innards_word_id, 0, Direction::Across));
         debug!("{:#?}", grid);
         grid.check_valid();
 
