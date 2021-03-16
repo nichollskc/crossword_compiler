@@ -236,7 +236,7 @@ impl CrosswordGenerator {
         }
     }
 
-    fn attempt_partition(&self, grid_attempt: &mut CrosswordGridAttempt, seed: u64) {
+    fn attempt_partition(&self, grid_attempt: &mut CrosswordGridAttempt, seed: u64) -> Option<CrosswordGridAttempt> {
         if grid_attempt.grid.count_placed_words() > 1 {
             let other_half_grid = grid_attempt.grid.random_partition(seed);
             let mut other_half = grid_attempt.clone();
@@ -247,8 +247,16 @@ impl CrosswordGenerator {
             other_half.update_score(&self.settings);
             grid_attempt.update_score(&self.settings);
 
+            Some(other_half)
+        } else {
+            None
+        }
+    }
+
+    fn partition_keep_best(&self, grid_attempt: &mut CrosswordGridAttempt, seed: u64) {
+        if let Some(other_half) = self.attempt_partition(grid_attempt, seed) {
             if other_half.summary_score > grid_attempt.summary_score {
-                *grid_attempt = other_half
+                *grid_attempt = other_half;
             }
         }
     }
@@ -278,7 +286,7 @@ impl CrosswordGenerator {
                     copied.increment_move_count(MoveType::PruneLeaves);
                 },
                 MoveType::Partition => {
-                    self.attempt_partition(&mut copied, extended_seed);
+                    self.partition_keep_best(&mut copied, extended_seed);
                 }
             }
             moves += 1;
