@@ -1,3 +1,6 @@
+language: rust
+rust:
+  - 1.0.0
 env:
   global:
     - CARGO_MAKE_RUN_CODECOV="true"
