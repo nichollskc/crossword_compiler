@@ -434,6 +434,11 @@ impl CrosswordGenerator {
         stringified
     }
 
+    fn average_move_counts_ancestors(&self) -> HashMap<MoveType, f64> {
+        let all_move_counts = self.current_generation_ancestors.iter().map(|x| x.move_counts.clone()).collect();
+        stats::mean_of_hashmaps(all_move_counts)
+    }
+
     fn average_move_counts(&self) -> HashMap<MoveType, f64> {
         let all_move_counts = self.current_generation_complete.iter().map(|x| x.move_counts.clone()).collect();
         stats::mean_of_hashmaps(all_move_counts)
@@ -455,6 +460,9 @@ impl CrosswordGenerator {
                                                                                            ":: "));
             info!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts(),
                                                                                         "average_count",
+                                                                                        ":: "));
+            info!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts_ancestors(),
+                                                                                        "average_ancestor_count",
                                                                                         ":: "));
 
             let this_generation_stringified = self.stringified_output();
