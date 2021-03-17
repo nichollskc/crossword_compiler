@@ -36,7 +36,7 @@ impl CrosswordGrid {
 
         for (word_id, other_word) in other.word_map.iter() {
             if let Some((start_location, _, direction)) = other_word.get_location() {
-                debug!("Attempting to add word {:?} to grid\n{:?}", other_word.word_id, self);
+                debug!("Attempting to add word {:?} to grid\n{:?}", word_id, self);
                 let this_word = self.word_map.get(word_id).unwrap();
                 assert!(!this_word.is_placed());
 

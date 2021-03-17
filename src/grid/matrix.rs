@@ -1,4 +1,4 @@
-use log::debug;
+use log::{info,debug};
 use std::cmp;
 
 use ndarray::{Array,ArrayView,Array2};
@@ -7,6 +7,7 @@ use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
 use super::VALID_ANSWERCHARS;
+use crate::utils;
 
 fn coord_isize_to_usize(value: isize, shift: isize) -> usize {
     (value + shift) as usize
@@ -22,6 +23,22 @@ fn cell_to_i16(cell: &Cell) -> i16 {
         let c_index = VALID_ANSWERCHARS.find(c).unwrap();
         (c_index as i16) + 2
     }
+}
+
+
+fn look_for_squares(a: &Array2<u8>) -> bool {
+    count_squares(a) > 0
+}
+
+fn count_squares(a: &Array2<u8>) -> usize {
+    let a_binary: Array2<u8> = a.mapv(|x| (x != 0) as u8);
+    let row_shifted = utils::shift_by_row(&a_binary);
+    let col_shifted = utils::shift_by_col(&a_binary);
+    let both_shifted = utils::shift_by_col(&row_shifted);
+    let sums: Array2<u8> = a_binary + row_shifted + col_shifted + both_shifted;
+
+    let squares_present = sums.iter().filter(|&x| *x == 4).count();
+    squares_present
 }
 
 #[derive(Debug)]
@@ -128,11 +145,15 @@ impl CrosswordGridMatrix {
         let no_mismatches = cells_shared_and_mismatched.iter().filter(|x| **x != 0).count() == 0;
         debug!("Cells shared and mismatched: {:#?}", cells_shared_and_mismatched);
 
+        let nonempty_cells_after_merge: Array2<u8> = utils::binarise_array(&padded1.matrix)
+                                                     + utils::binarise_array(&padded2.matrix);
+        let squares_present = look_for_squares(&nonempty_cells_after_merge);
+
         CrosswordGridMatrixCompatability {
             row_shift: other_row_shift,
             col_shift: other_col_shift,
             num_overlaps,
-            compatible: grids_overlap && no_mismatches,
+            compatible: grids_overlap && no_mismatches && !squares_present,
         }
     }
 
