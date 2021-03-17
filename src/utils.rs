@@ -1,7 +1,7 @@
 use ndarray::{IntoNdProducer, AssignElem};
 use ndarray::{s, Array2};
 use ndarray::Zip;
-use num_traits::Num;
+use num_traits::{Num,Signed};
 
 // This function clones elements from the first input to the second;
 // the two producers must have the same shape
@@ -27,6 +27,10 @@ pub fn shift_by_col<T: Num + Clone>(a: &Array2<T>) -> Array2<T> {
     b
 }
 
-pub fn binarise_array<T: Num + Clone>(a : &Array2<T>) -> Array2<u8> {
+pub fn binarise_array<T: Num + Clone>(a: &Array2<T>) -> Array2<u8> {
     a.mapv(|x| (!x.is_zero()) as u8)
+}
+
+pub fn binarise_array_threshold<T: Num + Clone + Signed + PartialOrd>(a: &Array2<T>, thresh: T) -> Array2<u8> {
+    a.mapv(|x| (x.abs() > thresh) as u8)
 }

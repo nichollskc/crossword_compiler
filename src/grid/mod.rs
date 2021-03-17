@@ -14,7 +14,7 @@ mod spacing;
 mod properties;
 mod pdf_conversion;
 mod matrix;
-mod recombination;
+mod merge;
 
 use word::Word;
 use cell::Cell;

@@ -25,13 +25,13 @@ fn cell_to_i16(cell: &Cell) -> i16 {
     }
 }
 
-
+/// Check if the array contains any 2x2 squares where all entries are non-zero
 fn look_for_squares(a: &Array2<u8>) -> bool {
     count_squares(a) > 0
 }
 
 fn count_squares(a: &Array2<u8>) -> usize {
-    let a_binary: Array2<u8> = a.mapv(|x| (x != 0) as u8);
+    let a_binary: Array2<u8> = utils::binarise_array(a);
     let row_shifted = utils::shift_by_row(&a_binary);
     let col_shifted = utils::shift_by_col(&a_binary);
     let both_shifted = utils::shift_by_col(&row_shifted);
@@ -145,9 +145,10 @@ impl CrosswordGridMatrix {
         let no_mismatches = cells_shared_and_mismatched.iter().filter(|x| **x != 0).count() == 0;
         debug!("Cells shared and mismatched: {:#?}", cells_shared_and_mismatched);
 
-        let nonempty_cells_after_merge: Array2<u8> = utils::binarise_array(&padded1.matrix)
-                                                     + utils::binarise_array(&padded2.matrix);
+        let nonempty_cells_after_merge: Array2<u8> = utils::binarise_array_threshold(&padded1.matrix, 1)
+                                                     + utils::binarise_array_threshold(&padded2.matrix, 1);
         let squares_present = look_for_squares(&nonempty_cells_after_merge);
+        info!("Grids overlap: {}, no mismatches: {}, squares: {}", grids_overlap, no_mismatches, squares_present);
 
         CrosswordGridMatrixCompatability {
             row_shift: other_row_shift,
@@ -317,5 +318,38 @@ mod tests {
 
         assert_eq!(Some((-3, -2)), grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
         assert_eq!(None, grid1.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
+    }
+
+    #[test]
+    fn test_matrix_has_squares() {
+        let squares = array![[0, 1, 1, 0],
+                             [0, 1, 1, 0],
+                             [0, 0, 0, 0]];
+        assert_eq!(count_squares(&squares), 1);
+
+        let squares = array![[1, 1, 1, 0],
+                             [0, 1, 1, 1],
+                             [1, 0, 1, 1]];
+        assert_eq!(count_squares(&squares), 2);
+
+        let squares = array![[0, 0, 0, 1],
+                             [1, 1, 1, 1],
+                             [1, 1, 0, 1]];
+        assert_eq!(count_squares(&squares), 1);
+
+        let squares = array![[0, 0, 0, 0],
+                             [0, 0, 1, 1],
+                             [0, 0, 1, 1]];
+        assert_eq!(count_squares(&squares), 1);
+
+        let squares = array![[1, 1, 0, 0],
+                             [1, 1, 1, 1],
+                             [0, 0, 1, 1]];
+        assert_eq!(count_squares(&squares), 2);
+
+        let squares = array![[0, 1, 0, 0],
+                             [1, 1, 1, 1],
+                             [0, 0, 1, 0]];
+        assert_eq!(count_squares(&squares), 0);
     }
 }
