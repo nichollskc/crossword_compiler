@@ -32,7 +32,9 @@ impl CrosswordGrid {
     }
 
     pub fn merge_with_grid(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) {
+        assert!(other.black_cells_valid());
         self.grow_to_fit_merge(other, row_shift, col_shift);
+        self.fill_black_cells();
 
         for (word_id, other_word) in other.word_map.iter() {
             if let Some((start_location, _, direction)) = other_word.get_location() {
@@ -93,6 +95,9 @@ mod tests {
         grid1.add_unplaced_word_at_id("TROUT", "", 102, None);
         println!("{:#?}", grid1);
         println!("{:#?}", grid2);
+
+        grid2.fit_to_size();
+        grid2.fill_black_cells();
         (grid1, grid2)
     }
 

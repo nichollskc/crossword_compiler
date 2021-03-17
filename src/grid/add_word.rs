@@ -1,4 +1,6 @@
 use log::debug;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 use super::CrosswordGrid;
 use super::Location;
@@ -7,6 +9,35 @@ use super::Direction;
 use super::Word;
 
 impl CrosswordGrid {
+    fn get_expected_black_cells(&self) -> Vec<Location> {
+        let mut black_cells: Vec<Location> = vec![];
+        for word in self.word_map.values() {
+            if let Some((start_location, end_location, direction)) = word.get_location() {
+                black_cells.push(start_location.relative_location_directed(-1, direction));
+                black_cells.push(end_location.relative_location_directed(1, direction));
+            }
+        }
+        black_cells
+    }
+
+    pub fn black_cells_valid(&self) -> bool {
+        let black_cells_set: HashSet<Location> = HashSet::from_iter(self.get_expected_black_cells().iter().cloned());
+        let mut valid = true;
+
+        for (location, cell) in self.cell_map.iter() {
+            if cell.is_black() && !black_cells_set.contains(location) {
+                valid = false;
+            }
+        }
+
+        for location in black_cells_set {
+            if !self.cell_map.get(&location).unwrap().is_black() {
+                valid = false;
+            }
+        }
+        valid
+    }
+
     pub fn fill_black_cells(&mut self) {
         // Clear black cells before starting
         for (_location, cell) in self.cell_map.iter_mut() {
@@ -15,19 +46,12 @@ impl CrosswordGrid {
             }
         }
 
-        for word in self.word_map.values() {
-            if let Some((start_location, end_location, direction)) = word.get_location() {
-                let mut black_cells: Vec<Location> = vec![];
-                black_cells.push(start_location.relative_location_directed(-1, direction));
-                black_cells.push(end_location.relative_location_directed(1, direction));
-
-                for cell_location in black_cells {
-                    if let Some(cell) = self.cell_map.get_mut(&cell_location) {
-                        cell.set_black();
-                    } else {
-                        panic!("Cell doesn't exist! {:#?}, {:#?}\n{:#?}", cell_location, word, self);
-                    }
-                }
+        let black_cells = self.get_expected_black_cells();
+        for cell_location in black_cells {
+            if let Some(cell) = self.cell_map.get_mut(&cell_location) {
+                cell.set_black();
+            } else {
+                panic!("Cell doesn't exist! {:#?}\n{:#?}", cell_location, self);
             }
         }
     }
