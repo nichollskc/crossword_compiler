@@ -3,6 +3,7 @@ use std::cmp;
 
 use super::CrosswordGrid;
 use super::Location;
+use super::CrosswordError;
 
 impl CrosswordGrid {
     fn words_placed_compatible(&self, other: &CrosswordGrid) -> bool {
@@ -20,18 +21,19 @@ impl CrosswordGrid {
         let mut success = self.words_placed_compatible(other);
         if success {
             // Then look to see if there is a way for the grids to fit together
-            let configuration = self.find_best_compatible_configuration_for_merge(other);
-            if let Some((row_shift, col_shift)) = configuration {
-                self.merge_with_grid(other, row_shift, col_shift);
+            let configuration = self.find_best_probably_compatible_configuration_for_merge(other);
+            success = if let Some((row_shift, col_shift)) = configuration {
+                // Try the merge, but in case of error note this as a failure and continue
+                self.merge_with_grid(other, row_shift, col_shift).is_ok()
             } else {
                 // If no valid configuration, this is a failure
-                success = false;
+                false
             }
         }
         success
     }
 
-    pub fn merge_with_grid(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) {
+    pub fn merge_with_grid(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) -> Result<(), CrosswordError> {
         assert!(other.black_cells_valid());
         self.grow_to_fit_merge(other, row_shift, col_shift);
         self.fill_black_cells();
@@ -43,11 +45,12 @@ impl CrosswordGrid {
                 assert!(!this_word.is_placed());
 
                 let shifted_location = start_location.relative_location(row_shift, col_shift);
-                let success = self.try_place_word_in_cell(shifted_location, *word_id, 0, direction, true);
+                let success = self.place_word_in_cell(shifted_location, *word_id, 0, direction);
                 assert!(success, "Failed to place word {} in location {:?}. Other word: {:?}", word_id, shifted_location, other_word);
             }
         }
         self.check_valid();
+        self.check_word_placement_valid()
     }
 
     fn grow_to_fit_merge(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) {

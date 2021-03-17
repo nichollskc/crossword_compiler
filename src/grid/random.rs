@@ -239,7 +239,9 @@ impl CrosswordGrid {
 
         let first_node = word_ids[0];
         let second_node = word_ids[1];
-        let (first_node_vec, second_node_vec) = self.to_graph().partition_nodes(first_node, second_node).unwrap();
+        let (first_node_vec, second_node_vec) = self.to_graph()
+            .partition_nodes(first_node, second_node)
+            .expect("Nodes should exist, as they correspond to words in the word_map of the grid");
 
         let mut second_grid = self.clone();
         for word_id in first_node_vec {

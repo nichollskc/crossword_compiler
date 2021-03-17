@@ -3,6 +3,7 @@ use log::debug;
 use std::collections::HashMap;
 use std::fmt;
 use ndarray::Array2;
+use thiserror::Error;
 
 mod builder;
 mod word;
@@ -23,6 +24,14 @@ pub use pdf_conversion::CrosswordPrinter;
 
 static VALID_ANSWERCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_— -;:,.?!@'`\"&*()$£%";
+
+#[derive(Error,Debug)]
+pub enum CrosswordError {
+    #[error("Two adjacent cells are incompatible due to absence of shared word: {0:?} {1:?}")]
+    AdjacentCellsNoLinkWord(Location, Location),
+    #[error("Cell not found in grid {0:?}")]
+    CellNotFound(Location),
+}
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Ord,PartialOrd,Hash)]
 pub enum Direction {
@@ -91,6 +100,13 @@ impl fmt::Debug for CrosswordGrid {
 }
 
 impl CrosswordGrid {
+    fn get_cell(&self, location: &Location) -> Result<&Cell, CrosswordError> {
+        match self.cell_map.get(location) {
+            Some(cell) => Ok(cell),
+            None => Err(CrosswordError::CellNotFound(*location)),
+        }
+    }
+
     pub fn new_single_word(word: &str) -> Self {
         let mut builder = builder::CrosswordGridBuilder::new();
         builder.from_string(word)

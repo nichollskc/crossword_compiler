@@ -158,7 +158,7 @@ impl CrosswordGridMatrix {
         }
     }
 
-    pub fn find_best_compatible_configuration(&self, other: &CrosswordGridMatrix) -> Option<(isize, isize)> {
+    pub fn find_best_probably_compatible_configuration(&self, other: &CrosswordGridMatrix) -> Option<(isize, isize)> {
         let min_row_shift = - (other.nrows as isize);
         let min_col_shift = - (other.ncols as isize);
         let max_row_shift = self.nrows as isize;
@@ -192,15 +192,26 @@ impl CrosswordGridMatrix {
 }
 
 impl CrosswordGrid {
-    pub fn find_best_compatible_configuration_for_merge(&self,
-                                                        other: &CrosswordGrid) -> Option<(isize, isize)> {
+    /// Return the row_shift and col_shift required to merge the other grid into this one.
+    /// Most cases are covered, except e.g. when two across words lie next to each other
+    /// for just one letter. This is an invalid crossword, since 'BR' isn't a word,
+    /// but there's no easy way to check for this inconsistency without just trying the merge.
+    /// Hence this is the best "probably compatible" configuration rather than
+    /// definitely compatible.
+    ///
+    /// Example that wouldn't be noticed as invalid:
+    ///    BEAR
+    /// BEER
+    pub fn find_best_probably_compatible_configuration_for_merge(&self,
+                                                                 other: &CrosswordGrid) -> Option<(isize, isize)> {
         info!("Looking to recombine\n{:#?}\n{:#?}\n{}\n{}",
                self, other, self.to_string(), other.to_string());
         let self_matrix = self.to_matrix();
         let other_matrix = other.to_matrix();
-        let configuration = self_matrix.find_best_compatible_configuration(&other_matrix);
+        let configuration = self_matrix.find_best_probably_compatible_configuration(&other_matrix);
         info!("Found configuration for recombination: {:?}", configuration);
         if let Some((row_shift, col_shift)) = configuration {
+            self_matrix.assess_compatability(&other_matrix, row_shift, col_shift);
             let shifted_configuration = (row_shift - self_matrix.row_shift + other_matrix.row_shift,
                                          col_shift - self_matrix.col_shift + other_matrix.col_shift);
             info!("Shifted configuration for recombination: {:?}", shifted_configuration);
@@ -303,7 +314,7 @@ mod tests {
     }
 
     #[test]
-    fn test_matrix_best_compatible() {
+    fn test_matrix_best_probably_compatible() {
         crate::logging::init_logger(true);
 
         let grid1 = CrosswordGridBuilder::new().from_file("tests/resources/everyman_starter.txt");
@@ -313,11 +324,11 @@ mod tests {
         println!("{:#?}", grid2.to_matrix());
         println!("{:#?}", grid3.to_matrix());
 
-        assert_eq!(Some((-2, 2)), grid1.to_matrix().find_best_compatible_configuration(&grid2.to_matrix()));
-        assert_eq!(Some(( 2,-2)), grid2.to_matrix().find_best_compatible_configuration(&grid1.to_matrix()));
+        assert_eq!(Some((-2, 2)), grid1.to_matrix().find_best_probably_compatible_configuration(&grid2.to_matrix()));
+        assert_eq!(Some(( 2,-2)), grid2.to_matrix().find_best_probably_compatible_configuration(&grid1.to_matrix()));
 
-        assert_eq!(Some((-3, -2)), grid2.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
-        assert_eq!(None, grid1.to_matrix().find_best_compatible_configuration(&grid3.to_matrix()));
+        assert_eq!(Some((-3, -2)), grid2.to_matrix().find_best_probably_compatible_configuration(&grid3.to_matrix()));
+        assert_eq!(None, grid1.to_matrix().find_best_probably_compatible_configuration(&grid3.to_matrix()));
     }
 
     #[test]

@@ -7,6 +7,7 @@ use super::Location;
 use super::Direction;
 
 use super::Word;
+use super::CrosswordError;
 
 impl CrosswordGrid {
     fn get_expected_black_cells(&self) -> Vec<Location> {
@@ -56,9 +57,8 @@ impl CrosswordGrid {
         }
     }
 
-    fn get_adjacent_word_id(&self, location: &Location, move_by: isize, move_direction: Direction, word_direction: Direction) -> Option<usize> {
-        let neighbour_location = location.relative_location_directed(move_by, move_direction);
-        let cell = self.cell_map.get(&neighbour_location).unwrap();
+    fn get_word_id(&self, location: &Location, word_direction: Direction) -> Option<usize> {
+        let cell = self.cell_map.get(&location).unwrap();
         debug!("Looking at adjacent cell {:?}", cell);
         match word_direction {
             Direction::Across => cell.get_across_word_id(),
@@ -66,37 +66,32 @@ impl CrosswordGrid {
         }
     }
 
-    fn adjacent_word_ids_mismatch(&self, location: &Location, move_by: isize, word_direction: Direction, expected_perp_id: Option<usize>) -> bool {
-        let found_perp_id: Option<usize> = self.get_adjacent_word_id(location, move_by, word_direction.rotate(), word_direction.rotate());
-        let found_parallel_id: Option<usize> = self.get_adjacent_word_id(location, move_by, word_direction.rotate(), word_direction);
-        let invalid: bool;
+    fn adjacent_word_ids_mismatch(&self, location: &Location, move_by: isize, word_direction: Direction, expected_perp_id: Option<usize>) -> Result<(), CrosswordError> {
+        let neighbour_location = location.relative_location_directed(move_by, word_direction.rotate());
+        let found_perp_id: Option<usize> = self.get_word_id(&neighbour_location, word_direction.rotate());
+        let found_parallel_id: Option<usize> = self.get_word_id(&neighbour_location, word_direction);
+        let result: Result<(), CrosswordError>;
 
         if found_parallel_id.is_none() {
             // If the adjacent cell has no parallel word, this is never a problem
-            invalid = false;
+            result = Ok(());
         } else {
             // This is only allowed if these two cells share a perpendicular word id
-            if found_perp_id.is_none() {
-                // So if the adjacent cell doesn't even have a perpendicular word ID, this is an
+            if found_perp_id.is_none() || expected_perp_id.is_none() {
+                // So if either cell doesn't even have a perpendicular word ID, this is an
                 // automatic failure
-                invalid = true;
+                result = Err(CrosswordError::AdjacentCellsNoLinkWord(*location, neighbour_location));
             } else {
-                // If the current cell hasn't got a perpendicular word id, this means we have a
-                // flaw in our logic, since the current cell should have been marked as Black (end
-                // of word) and so we shouldn't be in this function
-                assert!(expected_perp_id.is_some(),
-                        "Adjacent cell should only belong to a word_id if this cell also belongs to that word");
-
                 // So there is a parallel word in the adjacent cell and a perpendicular word.
                 // Final check is whether the two IDs match. If not, this is a flaw in the logic,
                 // so panic! If we don't panic in the assert, the two are equal so the word ids do
                 // not cause mismatch
                 assert_eq!(expected_perp_id, found_perp_id,
-                        "Adjacent cells have words in the same direction which are different! E.g. BEARBUTTON - two words without a Black space to separate them.");
-                invalid = false
+                           "Adjacent cells have words in the same direction which are different! E.g. BEARBUTTON - two words without a Black space to separate them.");
+                result = Ok(());
             }
         }
-        invalid
+        result
     }
 
     fn neighbouring_cells_empty(&self, location: Location, neighbour_moves: Vec<(isize, isize)>) -> bool {
@@ -193,11 +188,11 @@ impl CrosswordGrid {
         // the current cell (if we are placing an across word, an adjacent filled cell should
         // share down word id and vice versa).
         if success {
-            success = !self.adjacent_word_ids_mismatch(&working_location, -1, word_direction, perpendicular_word_id);
+            success = self.adjacent_word_ids_mismatch(&working_location, -1, word_direction, perpendicular_word_id).is_ok();
             debug!("Checked adjacent cell empty or matches perpendicular word: {}", success);
         }
         if success {
-            success = !self.adjacent_word_ids_mismatch(&working_location, 1, word_direction, perpendicular_word_id);
+            success = self.adjacent_word_ids_mismatch(&working_location, 1, word_direction, perpendicular_word_id).is_ok();
             debug!("Checked adjacent cell empty or matches perpendicular word: {}", success);
         }
 
@@ -221,7 +216,7 @@ impl CrosswordGrid {
         self.fill_black_cells();
 
         let mut success: bool;
-        let mut word = self.word_map.get(&word_id).unwrap().clone();
+        let word = self.word_map.get(&word_id).unwrap();
         debug!("Attempting to add word to location: {:?} word_direction: {:?} index: {} word: {:?}",
                location, word_direction, index_in_word, word);
         assert!(!word.is_placed());
@@ -230,34 +225,7 @@ impl CrosswordGrid {
             success = false;
             debug!("Failed since direction {:?} is not what word requires: {:?}", word_direction, word);
         } else if self.cell_is_open(location, word_direction, allow_empty) {
-            // Check that the spaces at either end of the word are free, and calculate the
-            // first cell where we should start placing letters
-            let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, word_direction);
-            success = ends_free;
-
-            let mut updated_locations: Vec<Location> = vec![];
-
-            let mut working_location = start_location.clone();
-            for letter in word.word_text.chars() {
-                if success {
-                    success = self.try_place_letter(letter, word_id, &working_location, word_direction);
-
-                    updated_locations.push(working_location);
-                    working_location = working_location.relative_location_directed(1, word_direction);
-                }
-            }
-
-            // If we have succeeded, update the location. Else, we failed, undo anything we did i.e. remove word from cells
-            if success {
-                word.update_location(start_location, word_direction);
-                self.word_map.insert(word_id, word);
-            } else {
-                for updated_location in updated_locations {
-                    let cell = self.cell_map.get_mut(&updated_location).unwrap();
-                    cell.remove_word(word_id);
-                }
-                self.fit_to_size();
-            }
+            success = self.place_word_in_cell(location, word_id, index_in_word, word_direction);
         } else {
             debug!("Failed since cell is not open");
             success = false;
@@ -269,6 +237,72 @@ impl CrosswordGrid {
         }
         debug!("After possibly adding {:?}", updated_word);
         success
+    }
+
+    pub fn place_word_in_cell(&mut self,
+                              location: Location,
+                              word_id: usize,
+                              index_in_word: usize,
+                              word_direction: Direction) -> bool {
+        let mut word = self.word_map.get(&word_id).unwrap().clone();
+
+        // Check that the spaces at either end of the word are free, and calculate the
+        // first cell where we should start placing letters
+        let (ends_free, start_location) = self.check_cells_at_ends_free_for_word(location, &word, index_in_word, word_direction);
+        let mut success = ends_free;
+
+        let mut updated_locations: Vec<Location> = vec![];
+
+        let mut working_location = start_location.clone();
+        for letter in word.word_text.chars() {
+            if success {
+                success = self.try_place_letter(letter, word_id, &working_location, word_direction);
+
+                updated_locations.push(working_location);
+                working_location = working_location.relative_location_directed(1, word_direction);
+            }
+        }
+
+        // If we have succeeded, update the location. Else, we failed, undo anything we did i.e. remove word from cells
+        if success {
+            word.update_location(start_location, word_direction);
+            self.word_map.insert(word_id, word);
+        } else {
+            for updated_location in updated_locations {
+                let cell = self.cell_map.get_mut(&updated_location).unwrap();
+                cell.remove_word(word_id);
+            }
+            self.fit_to_size();
+        }
+        success
+    }
+
+    fn check_adjacent_cell_matches(&self,
+                                   location: &Location,
+                                   move_by: isize,
+                                   direction: Direction) -> Result<(), CrosswordError> {
+        let cell = self.get_cell(location).unwrap();
+        if cell.contains_letter() {
+            let joining_word_id: Option<usize> = match direction {
+                Direction::Across => cell.get_across_word_id(),
+                Direction::Down => cell.get_down_word_id(),
+            };
+            self.adjacent_word_ids_mismatch(location, move_by, direction, joining_word_id)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn check_word_placement_valid(&self) -> Result<(), CrosswordError> {
+        // Each cell with a word_id should only be adjacent to another cell with
+        // a word_id if the IDs match
+        for location in self.cell_map.keys() {
+            self.check_adjacent_cell_matches(location, -1, Direction::Across)?;
+            self.check_adjacent_cell_matches(location,  1, Direction::Across)?;
+            self.check_adjacent_cell_matches(location, -1, Direction::Down)?;
+            self.check_adjacent_cell_matches(location,  1, Direction::Down)?;
+        }
+        Ok(())
     }
 }
 
