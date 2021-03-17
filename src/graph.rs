@@ -11,8 +11,17 @@ pub enum GraphError {
     NodeNotFound(usize),
 
     #[error("Invalid edge in graph: {0:?}, node {1} not found")]
-    InvalidEdge((usize, usize), usize),
+    InvalidEdge(Edge, usize),
 }
+
+fn sorted_vec_from_set(set: HashSet<usize>) -> Vec<usize> {
+    let mut vec: Vec<usize> = set.into_iter().collect();
+    vec.sort();
+    vec
+}
+
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq,PartialOrd,Ord)]
+pub struct Edge(usize, usize);
 
 #[derive(Clone,Debug)]
 struct Node {
@@ -44,12 +53,11 @@ impl Node {
 
 #[derive(Clone,Debug)]
 pub struct Graph {
-    // Node storage
+    // Node storage, which may contain dead nodes
     node_storage: Vec<Node>,
     // Hashmap of all nodes in the graph, indexed by their fixed node_id
     // The value in the hashmap is the node's index in the node_storage
     node_map: HashMap<usize, usize>,
-    num_nodes: usize,
 }
 
 impl Graph {
@@ -65,7 +73,6 @@ impl Graph {
     /// ```
     pub fn new_from_edges(edges: Vec<(usize, usize)>) -> Self {
         let mut graph: Graph = Graph {
-            num_nodes: 0,
             node_storage: vec![],
             node_map: HashMap::new(),
         };
@@ -116,13 +123,22 @@ impl Graph {
             debug!("Adding node {}", node_id);
             // Create node and find the index it will have
             let node: Node = Node::new(node_id);
-            let node_index: usize = self.num_nodes;
+            let node_index: usize = self.count_nodes();
 
-            self.num_nodes += 1;
             self.node_storage.push(node);
             self.node_map.insert(node_id, node_index);
         }
         already_present
+    }
+
+    /// Returns the number of nodes in the graph.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (100, 101)]);
+    /// assert_eq!(graph.count_nodes(), 5);
+    /// ```
+    pub fn count_nodes(&self) -> usize {
+        self.node_storage.len()
     }
 
     /// Returns the number of (undirected) edges in the graph.
@@ -149,7 +165,7 @@ impl Graph {
     /// ```
     pub fn is_connected(&self) -> bool {
         let mut connected = true;
-        if self.num_nodes > 0 {
+        if self.count_nodes() > 0 {
             let node_visit_counts = self.traverse_count_node_visits();
             for node_id in self.node_map.keys() {
                 // If the node does not have any visits, the whole graph is disconnected
@@ -172,7 +188,7 @@ impl Graph {
         if !self.is_connected() {
             warn!("Counting cycles in a graph which is not connected - we may miss some cycles!");
         }
-        self.count_edges() + 1 - self.num_nodes
+        self.count_edges() + 1 - self.count_nodes()
     }
 
     /// Returns a list of all leaves in the graph i.e. nodes connected to at most one other node.
@@ -204,6 +220,115 @@ impl Graph {
         }
         leaves.sort();
         leaves
+    }
+
+    /// Given two node IDs, split the graph into two connected components, one containing
+    /// first_node and one containing second_node. Returns an error if the nodes aren't present.
+    /// Also returns an error if an inconsistency of the graph is discovered during the process.
+    ///
+    /// The partition is deterministic, and order of nodes returned within each partition is
+    /// also deterministic.
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+    /// assert_eq!(graph.partition_nodes(0, 3).unwrap(), (vec![0, 1], vec![2, 3]));
+    /// ```
+    pub fn partition_nodes(&self, first_node: usize, second_node: usize) -> Result<(Vec<usize>, Vec<usize>), GraphError> {
+        // Set up sets to keep track of nodes visited
+        let mut first_node_set: HashSet<usize> = HashSet::new();
+        first_node_set.insert(first_node);
+        let mut second_node_set: HashSet<usize> = HashSet::new();
+        second_node_set.insert(second_node);
+
+        // Set to keep track of edges already used
+        let mut used_edges: HashSet<Edge> = HashSet::new();
+
+        // Edges to try next - initialised with edges from first and second nodes
+        // Each entry is of the form (from_first_node, edge)
+        let mut edge_stack: VecDeque<(bool, Edge)> = VecDeque::new();
+        for edge in self._get_edge_list(first_node)? {
+            edge_stack.push_back((true, edge));
+        }
+        for edge in self._get_edge_list(second_node)? {
+            edge_stack.push_back((false, edge));
+        }
+        debug!("Edge stack to start {:?}", edge_stack);
+
+        while let Some((from_first, edge)) = edge_stack.pop_front() {
+            debug!("Node sets: {:?}\n{:?}", first_node_set, second_node_set);
+            // Only traverse edge if we haven't already used it
+            let edge_already_used: bool = !used_edges.insert(edge);
+            debug!("Looking at edge {:?}, already considered {}", edge, edge_already_used);
+
+            // Also add the reverse edge to the set of used edges
+            let Edge(node_from, node_to) = edge;
+            used_edges.insert(Edge(node_to, node_from));
+
+            // Visit the node this edge points to as long as we haven't already used the edge
+            if !edge_already_used {
+                let is_first_visit = !first_node_set.contains(&node_to) && !second_node_set.contains(&node_to);
+
+                // If we haven't already visited this node, add it to the relevant set
+                // and add new edges to the stack
+                if is_first_visit {
+                    debug!("First visit to node {}", node_to);
+
+                    // Add to the relevant set
+                    if from_first {
+                        first_node_set.insert(node_to);
+                    } else {
+                        second_node_set.insert(node_to);
+                    }
+
+                    // If this is our first visit to this node, add all edges onto the stack
+                    // If we can't find the node this edge pointed to, there is an invalid edge in
+                    // the graph, return an error so we are aware the graph is broken
+                    for edge in self._get_edge_list(node_to).map_err(|_| GraphError::InvalidEdge(edge, node_to))? {
+                        edge_stack.push_back((from_first, edge));
+                    }
+                }
+            }
+        }
+
+        // Finally, return the partition as two sorted vectors of nodes
+        Ok((sorted_vec_from_set(first_node_set), sorted_vec_from_set(second_node_set)))
+    }
+
+    /// Delete the given node and return the connected components of the graph after
+    /// this deletion.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0), (0, 5)]);
+    /// assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4, 5]]);
+    /// assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4], vec![5]]);
+    /// ```
+    pub fn components_after_deleting_node(&mut self, node_id: usize) -> Result<Vec<Vec<usize>>,GraphError> {
+        self.delete_node(node_id)?;
+        self.get_connected_components()
+    }
+
+    /// Return the connected components of the graph as a list of lists of nodes.
+    /// Order of components, and order of nodes within the components is deterministic.
+    /// Returns an error if an inconsistency in the graph is found.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (2, 3)]);
+    /// assert_eq!(graph.get_connected_components().unwrap(), vec![vec![0, 1], vec![2, 3]]);
+    /// ```
+    pub fn get_connected_components(&self) -> Result<Vec<Vec<usize>>,GraphError> {
+        let mut components: Vec<Vec<usize>> = vec![];
+        let mut nodes_visited: HashSet<usize> = HashSet::new();
+
+        while let Some(unvisited_node_id) = self.first_node_not_in_set(&nodes_visited) {
+            let node_visit_counts = self.traverse_count_node_visits_from_node(unvisited_node_id)?;
+            let mut component: Vec<usize> = vec![];
+            for node_id in node_visit_counts.keys() {
+                component.push(*node_id);
+                nodes_visited.insert(*node_id);
+            }
+            component.sort();
+            components.push(component);
+        }
+        Ok(components)
     }
 
     fn get_node_mut(&mut self, node_id: usize) -> Result<&mut Node, GraphError> {
@@ -241,8 +366,8 @@ impl Graph {
         let mut node_visit_counts: Counter<usize> = Counter::new();
         node_visit_counts.increment(node_id);
 
-        let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
-        let mut edge_stack: Vec<(usize, usize)> = self._get_edge_list(node_id)?;
+        let mut used_edges: HashSet<Edge> = HashSet::new();
+        let mut edge_stack: Vec<Edge> = self._get_edge_list(node_id)?;
         debug!("Edge stack to start {:#?}", edge_stack);
 
         while let Some(edge) = edge_stack.pop() {
@@ -250,8 +375,8 @@ impl Graph {
             let edge_already_used: bool = !used_edges.insert(edge);
 
             // Also add the reverse edge to the set of used edges
-            let (first, second) = edge;
-            used_edges.insert((second, first));
+            let Edge(first, second) = edge;
+            used_edges.insert(Edge(second, first));
             debug!("Looking at edge {:#?}, already considered {}", edge, edge_already_used);
             if !edge_already_used {
                 // Visit the node this edge points to
@@ -273,73 +398,21 @@ impl Graph {
         Ok(node_visit_counts.into_hashmap())
     }
 
-    fn _get_edge_list(&self, node_id: usize) -> Result<Vec<(usize, usize)>, GraphError> {
+    // Attempt to find a list of all the edges starting from this node. Return an error
+    // if the node doesn't exist.
+    //
+    // Order of the edges is deterministic.
+    fn _get_edge_list(&self, node_id: usize) -> Result<Vec<Edge>, GraphError> {
         let node = self.get_node(node_id)?;
-        let mut edges: Vec<(usize, usize)> = vec![];
+        let mut edges: Vec<Edge> = vec![];
         for neighbour_id in node.connected_nodes.iter() {
-            edges.push((node_id, *neighbour_id));
+            edges.push(Edge(node_id, *neighbour_id));
         }
         edges.sort();
         Ok(edges)
     }
 
-    /// Given two node IDs, split the graph into two connected components, one containing
-    /// first_node and one containing second_node.
-    pub fn partition_graph(&self, first_node: usize, second_node: usize) -> Result<(Vec<usize>, Vec<usize>), GraphError> {
-        let mut node_visit_counts: HashMap<usize, usize> = HashMap::new();
-        node_visit_counts.insert(first_node, 1);
-        node_visit_counts.insert(second_node, 1);
-
-        let mut first_node_set: HashSet<usize> = HashSet::new();
-        first_node_set.insert(first_node);
-        let mut second_node_set: HashSet<usize> = HashSet::new();
-        second_node_set.insert(second_node);
-
-        let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
-        let mut edge_stack: VecDeque<(bool, (usize, usize))> = VecDeque::new();
-
-        for edge in self._get_edge_list(first_node)? {
-            edge_stack.push_back((true, edge));
-        }
-        for edge in self._get_edge_list(second_node)? {
-            edge_stack.push_back((false, edge));
-        }
-        debug!("Edge stack to start {:?}", edge_stack);
-
-        while let Some((from_first, edge)) = edge_stack.pop_front() {
-            debug!("Node sets: {:?}\n{:?}", first_node_set, second_node_set);
-            // Only traverse edge if we haven't already used it
-            let edge_already_used: bool = !used_edges.insert(edge);
-
-            // Also add the reverse edge to the set of used edges
-            let (node_from, node_to) = edge;
-            used_edges.insert((node_to, node_from));
-            debug!("Looking at edge {:?}, already considered {}", edge, edge_already_used);
-            if !edge_already_used {
-                // Visit the node this edge points to
-
-                let is_first_visit = if from_first {
-                    !second_node_set.contains(&node_to) && first_node_set.insert(node_to)
-                } else {
-                    !first_node_set.contains(&node_to) && second_node_set.insert(node_to)
-                };
-
-                if is_first_visit {
-                    debug!("First visit to node {}", node_to);
-                    // If this is our first visit, add all edges onto the stack
-                    for edge in self._get_edge_list(node_to).map_err(|_| GraphError::InvalidEdge(edge, node_to))? {
-                        edge_stack.push_back((from_first, edge));
-                    }
-                }
-            }
-        }
-        let mut first_node_vec: Vec<usize> = first_node_set.into_iter().collect();
-        first_node_vec.sort();
-        let mut second_node_vec: Vec<usize> = second_node_set.into_iter().collect();
-        second_node_vec.sort();
-        Ok((first_node_vec, second_node_vec))
-    }
-
+    // Return the node with the smallest node_id which is not contained in the set forbidden_nodes
     fn first_node_not_in_set(&self, forbidden_nodes: &HashSet<usize>) -> Option<usize> {
         let mut allowed_nodes: Vec<usize> = self.node_map.keys().filter(|n| !forbidden_nodes.contains(n)).cloned().collect();
         allowed_nodes.sort();
@@ -347,33 +420,42 @@ impl Graph {
         allowed_nodes.pop()
     }
 
-    pub fn components_after_deleting_node(&mut self, node_id: usize) -> Vec<Vec<usize>> {
-        let connected_nodes = self.get_node(node_id).unwrap().connected_nodes.clone();
+    // Delete the node, and all edges in the graph involving the node. Return
+    // true if the node was deleted, false if it wasn't found.
+    fn delete_node(&mut self, node_id: usize) -> Result<bool,GraphError> {
+        let connected_nodes = match self.get_node_mut(node_id) {
+            Ok(node) => node.connected_nodes.drain().collect(),
+            Err(_) => HashSet::new(),
+        };
+
         for neighbour_id in connected_nodes.iter() {
-            let neighbour = self.get_node_mut(*neighbour_id).unwrap();
+            let neighbour = self.get_node_mut(*neighbour_id)
+                .map_err(|_| GraphError::InvalidEdge(Edge(node_id, *neighbour_id), *neighbour_id))?;
             neighbour.remove_edge(node_id);
         }
-        self.get_node_mut(node_id).unwrap().connected_nodes = HashSet::new();
 
-        let mut components: Vec<Vec<usize>> = vec![];
-        let mut nodes_visited: HashSet<usize> = HashSet::new();
-        nodes_visited.insert(node_id);
+        let was_deleted = self.shift_node_storage_after_removal(node_id);
+        Ok(was_deleted)
+    }
 
-        while let Some(unvisited_node_id) = self.first_node_not_in_set(&nodes_visited) {
-            match self.traverse_count_node_visits_from_node(unvisited_node_id) {
-                Ok(node_visit_counts) => {
-                    let mut component: Vec<usize> = vec![];
-                    for node_id in node_visit_counts.keys() {
-                        component.push(*node_id);
-                        nodes_visited.insert(*node_id);
-                    }
-                    component.sort();
-                    components.push(component);
-                },
-                Err(error) => panic!("Graph found to be inconsistent when partitioning after deleting node: {:?}", error),
-            };
+    // Delete a node from node storage, and from the node map, and update the
+    // node_storage and node_map to reflect this
+    fn shift_node_storage_after_removal(&mut self, node_id: usize) -> bool {
+        let mut was_deleted = false;
+        let index_in_storage = self.node_map.remove(&node_id);
+        if let Some(index) = index_in_storage {
+            // Remove the node, shifting all to the left
+            self.node_storage.remove(index);
+
+            let mut i = index;
+            while i < self.node_storage.len() {
+                let node = &self.node_storage[i];
+                self.node_map.insert(node.node_id, i);
+                i += 1;
+            }
+            was_deleted = true;
         }
-        components
+        was_deleted
     }
 }
 
@@ -381,10 +463,9 @@ impl Graph {
 mod tests {
     use super::*;
 
-    fn check_graph(graph: Graph, expected_nodes: usize, expected_edges: usize) {
+    fn check_graph(graph: &Graph, expected_nodes: usize, expected_edges: usize) {
         debug!("Result is {:#?}", graph);
-        assert_eq!(graph.num_nodes, expected_nodes);
-        assert_eq!(graph.node_storage.len(), expected_nodes);
+        assert_eq!(graph.count_nodes(), expected_nodes);
         assert_eq!(graph.count_edges(), expected_edges);
     }
 
@@ -392,20 +473,20 @@ mod tests {
     fn build_graph_complex() {
         crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (2, 0)]);
-        check_graph(graph, 4, 4);
+        check_graph(&graph, 4, 4);
 
         let graph = Graph::new_from_edges(vec![(0, 1), (0, 1), (0, 1), (1, 0)]);
-        check_graph(graph, 2, 1);
+        check_graph(&graph, 2, 1);
     }
 
     #[test]
     fn build_graph_basic() {
         crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        check_graph(graph, 4, 3);
+        check_graph(&graph, 4, 3);
 
         let graph = Graph::new_from_edges(vec![(10, 11), (11, 20), (20, 5)]);
-        check_graph(graph, 4, 3);
+        check_graph(&graph, 4, 3);
     }
 
     #[test]
@@ -432,35 +513,35 @@ mod tests {
     }
 
     #[test]
-    fn test_partition_graph() {
+    fn test_partition_nodes() {
         crate::logging::init_logger(true);
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        assert_eq!(graph.partition_graph(0, 3).unwrap(), (vec![0, 1], vec![2, 3]));
+        assert_eq!(graph.partition_nodes(0, 3).unwrap(), (vec![0, 1], vec![2, 3]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        assert_eq!(graph.partition_graph(3, 0).unwrap(), (vec![2, 3], vec![0, 1]));
+        assert_eq!(graph.partition_nodes(3, 0).unwrap(), (vec![2, 3], vec![0, 1]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        assert_eq!(graph.partition_graph(0, 1).unwrap(), (vec![0], vec![1, 2, 3]));
+        assert_eq!(graph.partition_nodes(0, 1).unwrap(), (vec![0], vec![1, 2, 3]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
-        assert_eq!(graph.partition_graph(1, 0).unwrap(), (vec![1, 2, 3], vec![0]));
+        assert_eq!(graph.partition_nodes(1, 0).unwrap(), (vec![1, 2, 3], vec![0]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
-        assert_eq!(graph.partition_graph(0, 3).unwrap(), (vec![0, 1], vec![2, 3]));
+        assert_eq!(graph.partition_nodes(0, 3).unwrap(), (vec![0, 1], vec![2, 3]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0)]);
-        assert_eq!(graph.partition_graph(0, 2).unwrap(), (vec![0, 1, 3], vec![2]));
+        assert_eq!(graph.partition_nodes(0, 2).unwrap(), (vec![0, 1, 3], vec![2]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
-        assert_eq!(graph.partition_graph(0, 3).unwrap(), (vec![0, 1, 2], vec![3, 4, 5]));
+        assert_eq!(graph.partition_nodes(0, 3).unwrap(), (vec![0, 1, 2], vec![3, 4, 5]));
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (5, 3), (3, 4), (4, 5)]);
-        assert_eq!(graph.partition_graph(3, 0).unwrap(), (vec![3, 4, 5], vec![0, 1, 2]));
+        assert_eq!(graph.partition_nodes(3, 0).unwrap(), (vec![3, 4, 5], vec![0, 1, 2]));
     }
 
     #[test]
-    fn test_partition_graph_robust() {
+    fn test_partition_nodes_robust() {
         crate::logging::init_logger(true);
         let mut edges: Vec<(usize, usize)> = vec![];
         for i in 0..20 {
@@ -473,7 +554,7 @@ mod tests {
         for i in 0..21 {
             for j in (i+1)..21 {
                 // For each pair of indices, split the graph
-                let (first, second) = graph.partition_graph(i, j).unwrap();
+                let (first, second) = graph.partition_nodes(i, j).unwrap();
 
                 // Create hashmap versions for convenience
                 let first_hash: HashSet<usize> = first.iter().cloned().collect();
@@ -509,18 +590,19 @@ mod tests {
     #[test]
     fn test_components_after_node_removal() {
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
-        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4]]);
-        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4]]);
+        assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4]]);
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0), (0, 5)]);
-        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4, 5]]);
-        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4], vec![5]]);
+        assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4, 5]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4], vec![5]]);
 
         let mut graph = Graph::new_from_edges(vec![(0, 1)]);
         println!("{:#?}", graph);
-        assert_eq!(graph.components_after_deleting_node(0), vec![vec![1]]);
+        assert_eq!(graph.components_after_deleting_node(0).unwrap(), vec![vec![1]]);
+        check_graph(&graph, 1, 0);
         println!("{:#?}", graph);
-        // This doesn't happen - the node 0 is still present, just not connected to anything
-        //assert_eq!(graph.components_after_deleting_node(1), Vec::<Vec<usize>>::new());
+        assert_eq!(graph.components_after_deleting_node(1).unwrap(), Vec::<Vec<usize>>::new());
+        check_graph(&graph, 0, 0);
     }
 }
