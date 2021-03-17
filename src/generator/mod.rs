@@ -13,6 +13,7 @@ use crate::grid::CrosswordGrid;
 use crate::custom_hashmap_format;
 
 mod stats;
+mod recombination;
 
 #[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
 enum MoveType {
@@ -315,6 +316,8 @@ impl CrosswordGenerator {
         info!("START. Current_ancestors: {}, current_complete: {}, next_ancestors: {}, next_complete: {}",
               self.current_generation_ancestors.len(), self.current_generation_complete.len(),
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
+        self.perform_recombination(self.round as u64);
+
         for grid_attempt in self.current_generation_ancestors.iter() {
             debug!("Considering extensions of grid:\n{}", grid_attempt.grid.to_string());
             let seed = (grid_attempt.summary_score as u64).wrapping_add(self.round as u64);
@@ -365,9 +368,7 @@ impl CrosswordGenerator {
               self.next_generation_ancestors.len(), self.next_generation_complete.len());
     }
 
-    fn pick_best_varied(&self, grid_attempts: Vec<CrosswordGridAttempt>, num_to_pick: usize) -> Vec<CrosswordGridAttempt> {
-        let mut best_attempts: Vec<CrosswordGridAttempt> = vec![];
-
+    fn restrict_to_unique(&self, grid_attempts: Vec<CrosswordGridAttempt>) -> Vec<CrosswordGridAttempt> {
         let mut unique_children_hashes: HashSet<String> = HashSet::new();
         let mut unique_children: Vec<CrosswordGridAttempt> = vec![];
 
@@ -377,11 +378,18 @@ impl CrosswordGenerator {
                 unique_children.push(child);
             }
         }
+        unique_children
+    }
+
+    fn pick_best_varied(&self, grid_attempts: Vec<CrosswordGridAttempt>, num_to_pick: usize) -> Vec<CrosswordGridAttempt> {
+        let mut best_attempts: Vec<CrosswordGridAttempt> = vec![];
+
+        let mut unique_children = self.restrict_to_unique(grid_attempts);
         let mut unique_children_summaries: Vec<isize> = unique_children.iter().map(|x| x.summary_score).collect();
         let mut unique_children_adjacencies: Vec<Array2<u8>> = unique_children.iter().map(|x| x.grid.to_graph_adjacency_matrix()).collect();
         let mut unique_children_adjusted_scores: Vec<isize> = unique_children_summaries.iter().cloned().collect();
 
-        while best_attempts.len() < num_to_pick {
+        while best_attempts.len() < num_to_pick && unique_children_summaries.len() > 0 {
             debug!("Raw scores:\n{:?}", unique_children_summaries);
             debug!("Adjusted scores:\n{:?}", unique_children_adjusted_scores);
             let best_index: usize = unique_children_adjusted_scores.iter().enumerate().max_by_key(|(_i, &s)| s).map(|(i, _s)| i).unwrap();
