@@ -250,7 +250,9 @@ impl CrosswordGrid {
         }
 
         self.fit_to_size();
+        self.fill_black_cells();
         second_grid.fit_to_size();
+        second_grid.fill_black_cells();
         second_grid
     }
 }
