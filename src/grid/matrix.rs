@@ -52,9 +52,15 @@ impl CrosswordGridMatrix {
         }
     }
 
+    pub fn translate_coord(&self, row: isize, col: isize) -> (usize, usize) {
+        let translated_row = coord_isize_to_usize(row, self.row_shift);
+        let translated_col = coord_isize_to_usize(col, self.col_shift);
+        (translated_row, translated_col)
+    }
+
     pub fn set_coord(&mut self, row: isize, col: isize, value: i16) {
-        self.matrix[[coord_isize_to_usize(row, self.row_shift),
-                     coord_isize_to_usize(col, self.col_shift)]] = value;
+        let coords = self.translate_coord(row, col);
+        self.matrix[[coords.0, coords.1]] = value;
     }
 
     pub fn padded_to_size(&self, nrows: usize, ncols: usize) -> Self {
@@ -164,6 +170,24 @@ impl CrosswordGridMatrix {
 }
 
 impl CrosswordGrid {
+    pub fn find_best_compatible_configuration_for_merge(&self,
+                                                        other: &CrosswordGrid) -> Option<(isize, isize)> {
+        info!("Looking to recombine\n{:#?}\n{:#?}\n{}\n{}",
+               self, other, self.to_string(), other.to_string());
+        let self_matrix = self.to_matrix();
+        let other_matrix = other.to_matrix();
+        let configuration = self_matrix.find_best_compatible_configuration(&other_matrix);
+        info!("Found configuration for recombination: {:?}", configuration);
+        if let Some((row_shift, col_shift)) = configuration {
+            let shifted_configuration = (row_shift - self_matrix.row_shift + other_matrix.row_shift,
+                                         col_shift - self_matrix.col_shift + other_matrix.col_shift);
+            info!("Shifted configuration for recombination: {:?}", shifted_configuration);
+            Some(shifted_configuration)
+        } else {
+            None
+        }
+    }
+
     fn to_matrix(&self) -> CrosswordGridMatrix {
         let mut row: isize = self.top_left_cell_index.0;
         let mut col: isize = self.top_left_cell_index.1;

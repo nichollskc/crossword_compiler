@@ -5,12 +5,38 @@ use super::CrosswordGrid;
 use super::Location;
 
 impl CrosswordGrid {
+    fn words_placed_compatible(&self, other: &CrosswordGrid) -> bool {
+        let mut compatible = true;
+        for (word_id, word) in self.word_map.iter() {
+            if word.is_placed() && other.word_map.get(word_id).unwrap().is_placed() {
+                compatible = false;
+            }
+        }
+        compatible
+    }
+
+    pub fn try_merge_with_grid(&mut self, other: &CrosswordGrid) -> bool {
+        // First check if the word lists are compatible i.e. that they don't share any placed words
+        let mut success = self.words_placed_compatible(other);
+        if success {
+            // Then look to see if there is a way for the grids to fit together
+            let configuration = self.find_best_compatible_configuration_for_merge(other);
+            if let Some((row_shift, col_shift)) = configuration {
+                self.merge_with_grid(other, row_shift, col_shift);
+            } else {
+                // If no valid configuration, this is a failure
+                success = false;
+            }
+        }
+        success
+    }
+
     pub fn merge_with_grid(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) {
         self.grow_to_fit_merge(other, row_shift, col_shift);
 
         for (word_id, other_word) in other.word_map.iter() {
-            debug!("Attempting to add word {:?} to grid\n{:?}", other_word, self);
             if let Some((start_location, _, direction)) = other_word.get_location() {
+                debug!("Attempting to add word {:?} to grid\n{:?}", other_word.word_id, self);
                 let this_word = self.word_map.get(word_id).unwrap();
                 assert!(!this_word.is_placed());
 
