@@ -9,9 +9,6 @@ use thiserror::Error;
 pub enum GraphError {
     #[error("Node not found {0}")]
     NodeNotFound(usize),
-
-    #[error("Invalid edge in graph: {0:?}, node {1} not found")]
-    InvalidEdge(Edge, usize),
 }
 
 fn sorted_vec_from_set(set: HashSet<usize>) -> Vec<usize> {
@@ -215,7 +212,7 @@ impl Graph {
                         leaves.push(*node_id);
                     }
                 },
-                Err(error) => panic!("Graph found to be inconsistent in search for leaves: {:?}", error),
+                Err(error) => warn!("Graph found to be inconsistent in search for leaves: {:?}", error),
             };
         }
         leaves.sort();
@@ -224,7 +221,6 @@ impl Graph {
 
     /// Given two node IDs, split the graph into two connected components, one containing
     /// first_node and one containing second_node. Returns an error if the nodes aren't present.
-    /// Also returns an error if an inconsistency of the graph is discovered during the process.
     ///
     /// The partition is deterministic, and order of nodes returned within each partition is
     /// also deterministic.
@@ -281,10 +277,16 @@ impl Graph {
 
                     // If this is our first visit to this node, add all edges onto the stack
                     // If we can't find the node this edge pointed to, there is an invalid edge in
-                    // the graph, return an error so we are aware the graph is broken
-                    for edge in self._get_edge_list(node_to).map_err(|_| GraphError::InvalidEdge(edge, node_to))? {
-                        edge_stack.push_back((from_first, edge));
-                    }
+                    // the graph, this could be serious, but it's easy to see how to carry on, so
+                    // just warn.
+                    match self._get_edge_list(node_to) {
+                        Ok(new_edges_to_visit) => {
+                            for new_edge in new_edges_to_visit.iter() {
+                                edge_stack.push_back((from_first, *new_edge));
+                            }
+                        },
+                        Err(error) => warn!("Graph inconsistency: edge {:?} exists but node {:?} does not: {:?}", edge, node_to, error),
+                    };
                 }
             }
         }
@@ -301,8 +303,8 @@ impl Graph {
     /// assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4, 5]]);
     /// assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4], vec![5]]);
     /// ```
-    pub fn components_after_deleting_node(&mut self, node_id: usize) -> Result<Vec<Vec<usize>>,GraphError> {
-        self.delete_node(node_id)?;
+    pub fn components_after_deleting_node(&mut self, node_id: usize) -> Vec<Vec<usize>> {
+        self.delete_node(node_id);
         self.get_connected_components()
     }
 
@@ -314,12 +316,12 @@ impl Graph {
     /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (2, 3)]);
     /// assert_eq!(graph.get_connected_components().unwrap(), vec![vec![0, 1], vec![2, 3]]);
     /// ```
-    pub fn get_connected_components(&self) -> Result<Vec<Vec<usize>>,GraphError> {
+    pub fn get_connected_components(&self) -> Vec<Vec<usize>> {
         let mut components: Vec<Vec<usize>> = vec![];
         let mut nodes_visited: HashSet<usize> = HashSet::new();
 
         while let Some(unvisited_node_id) = self.first_node_not_in_set(&nodes_visited) {
-            let node_visit_counts = self.traverse_count_node_visits_from_node(unvisited_node_id)?;
+            let node_visit_counts = self.traverse_count_node_visits_from_node(unvisited_node_id).expect("Node should exist, as we just found it in the node_map");
             let mut component: Vec<usize> = vec![];
             for node_id in node_visit_counts.keys() {
                 component.push(*node_id);
@@ -328,7 +330,7 @@ impl Graph {
             component.sort();
             components.push(component);
         }
-        Ok(components)
+        components
     }
 
     fn get_node_mut(&mut self, node_id: usize) -> Result<&mut Node, GraphError> {
@@ -390,7 +392,7 @@ impl Graph {
                     // If this is our first visit, add all edges onto the stack
                     match self._get_edge_list(next_node) {
                         Ok(mut new_nodes_to_visit) => edge_stack.append(&mut new_nodes_to_visit),
-                        Err(error) => panic!("Graph inconsistent - node should be present as we found it through an edge {:?}. Error: {:?}", edge, error),
+                        Err(error) => warn!("Graph inconsistent - node should be present as we found it through an edge {:?}. Error: {:?}", edge, error),
                     };
                 }
             }
@@ -422,20 +424,22 @@ impl Graph {
 
     // Delete the node, and all edges in the graph involving the node. Return
     // true if the node was deleted, false if it wasn't found.
-    fn delete_node(&mut self, node_id: usize) -> Result<bool,GraphError> {
+    fn delete_node(&mut self, node_id: usize) -> bool {
         let connected_nodes = match self.get_node_mut(node_id) {
             Ok(node) => node.connected_nodes.drain().collect(),
             Err(_) => HashSet::new(),
         };
 
         for neighbour_id in connected_nodes.iter() {
-            let neighbour = self.get_node_mut(*neighbour_id)
-                .map_err(|_| GraphError::InvalidEdge(Edge(node_id, *neighbour_id), *neighbour_id))?;
-            neighbour.remove_edge(node_id);
+            match self.get_node_mut(*neighbour_id) {
+                Ok(neighbour) => neighbour.remove_edge(node_id),
+                Err(error) => warn!("Graph inconsistency: edge {:?} exists but node {:?} does not: {:?}",
+                                    Edge(node_id, *neighbour_id), *neighbour_id, error),
+            };
         }
 
         let was_deleted = self.shift_node_storage_after_removal(node_id);
-        Ok(was_deleted)
+        was_deleted
     }
 
     // Delete a node from node storage, and from the node map, and update the
