@@ -1,5 +1,7 @@
-use log::{warn,debug};
+use log::{info,warn,debug};
 use std::collections::{HashSet,HashMap,VecDeque};
+
+use crate::utils::Counter;
 
 use thiserror::Error;
 
@@ -21,6 +23,7 @@ struct Node {
 }
 
 impl Node {
+    /// Create a new node with no edges connected to it
     fn new(node_id: usize) -> Self {
         Node {
             node_id,
@@ -28,10 +31,12 @@ impl Node {
         }
     }
 
+    /// Add neighbour to this node. Note that the reverse edge should be (manually) added to the neighbour.
     fn add_edge(&mut self, neighbour_id: usize) {
         self.connected_nodes.insert(neighbour_id);
     }
 
+    /// Remove one of the neighbours of this node. Note that the reverse edge should be (manually) removed from the neighbour.
     fn remove_edge(&mut self, neighbour_id: usize) {
         self.connected_nodes.remove(&neighbour_id);
     }
@@ -48,6 +53,16 @@ pub struct Graph {
 }
 
 impl Graph {
+    /// Constructs an undirected graph from a list of edges.
+    ///
+    /// The graph will contain a node for each node_id included in some edge,
+    /// and for each edge (a,b) passed to the function, it will contain both
+    /// the edge a->b and the edge b->a.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3)]);
+    /// assert!(graph.is_connected());
+    /// ```
     pub fn new_from_edges(edges: Vec<(usize, usize)>) -> Self {
         let mut graph: Graph = Graph {
             num_nodes: 0,
@@ -59,6 +74,17 @@ impl Graph {
         graph
     }
 
+    /// Adds edges to the undirected graph.
+    ///
+    /// A node will be added for each new node_id included in an edge,
+    /// and for each edge (a,b) passed to the function, the graph will now
+    /// contain both the edge a->b and the edge b->a.
+    /// ```
+    /// let mut graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (2, 3)]);
+    /// assert!(!graph.is_connected());
+    /// graph.add_edges(vec![(1, 2), (3, 4)]);
+    /// assert!(graph.is_connected());
+    /// ```
     pub fn add_edges(&mut self, edges: Vec<(usize, usize)>) {
         for edge in edges.iter() {
             debug!("Edge {:#?}", edge);
@@ -70,11 +96,20 @@ impl Graph {
 
             // Then fetch the nodes and add each as a neighbour to the other
             // Note we just added these nodes, so it should be safe to fetch them!
-            self.get_node_mut(*first).unwrap().add_edge(*second);
-            self.get_node_mut(*second).unwrap().add_edge(*first);
+            self.get_node_mut(*first).expect("Only just added this node, it should exist!").add_edge(*second);
+            self.get_node_mut(*second).expect("Only just added this node, it should exist!").add_edge(*first);
         }
     }
 
+    /// Adds a disconnected node to the graph, returning true if the node was already present.
+    ///
+    /// ```
+    /// let mut graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2)]);
+    /// assert!(graph.is_connected());
+    /// assert!(graph.add_node(0));
+    /// assert!(!graph.add_node(3));
+    /// assert!(!graph.is_connected());
+    /// ```
     pub fn add_node(&mut self, node_id: usize) -> bool {
         let already_present: bool = self.node_map.contains_key(&node_id);
         if !already_present {
@@ -88,6 +123,87 @@ impl Graph {
             self.node_map.insert(node_id, node_index);
         }
         already_present
+    }
+
+    /// Returns the number of (undirected) edges in the graph.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (100, 101)]);
+    /// assert_eq!(graph.count_edges(), 3);
+    /// ```
+    pub fn count_edges(&self) -> usize {
+        let mut edge_count: usize = 0;
+        for node in self.node_storage.iter() {
+            edge_count += node.connected_nodes.len();
+        }
+        edge_count / 2
+    }
+
+    /// Returns true if all nodes are in one connected component, false otherwise
+    ///
+    /// ```
+    /// let mut graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (2, 3)]);
+    /// assert!(!graph.is_connected());
+    /// graph.add_edges(vec![(1, 2), (3, 4)]);
+    /// assert!(graph.is_connected());
+    /// ```
+    pub fn is_connected(&self) -> bool {
+        let mut connected = true;
+        if self.num_nodes > 0 {
+            let node_visit_counts = self.traverse_count_node_visits();
+            for node_id in self.node_map.keys() {
+                // If the node does not have any visits, the whole graph is disconnected
+                if !node_visit_counts.contains_key(node_id) {
+                    connected = false;
+                    info!("Node never reached {}", node_id);
+                }
+            }
+        }
+        connected
+    }
+
+    /// Counts cycles in the graph, with the assumption that it is connected.
+    ///
+    /// ```
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 0), (2, 4), (4, 3)]);
+    /// assert_eq!(graph.count_cycles(), 2);
+    /// ```
+    pub fn count_cycles(&self) -> usize {
+        if !self.is_connected() {
+            warn!("Counting cycles in a graph which is not connected - we may miss some cycles!");
+        }
+        self.count_edges() + 1 - self.num_nodes
+    }
+
+    /// Returns a list of all leaves in the graph i.e. nodes connected to at most one other node.
+    ///
+    /// These nodes can be safely removed from the graph without increasing the number
+    /// of connected components.
+    ///
+    /// ```
+    /// // A simple cycle - no leaves
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0)]);
+    /// assert_eq!(graph.find_leaves(), Vec::<usize>::new());
+    ///
+    /// // More complex graph with leaves
+    /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 3), (3, 4), (2, 5), (3, 6)]);
+    /// assert_eq!(graph.find_leaves(), vec![0, 4, 5, 6]);
+    /// ```
+    pub fn find_leaves(&self) -> Vec<usize> {
+        let mut leaves = vec![];
+        for node_id in self.node_map.keys() {
+            match self.get_node(*node_id) {
+                Ok(node) => {
+                    // A leaf is a node which has only one edge
+                    if node.connected_nodes.len() <= 1 {
+                        leaves.push(*node_id);
+                    }
+                },
+                Err(error) => panic!("Graph found to be inconsistent in search for leaves: {:?}", error),
+            };
+        }
+        leaves.sort();
+        leaves
     }
 
     fn get_node_mut(&mut self, node_id: usize) -> Result<&mut Node, GraphError> {
@@ -104,16 +220,13 @@ impl Graph {
         }
     }
 
-    pub fn count_edges(&self) -> usize {
-        let mut edge_count: usize = 0;
-        for node in self.node_storage.iter() {
-            edge_count += node.connected_nodes.len();
-        }
-        edge_count / 2
-    }
-
+    // Starting from an arbitrary node, performs a search through all nodes
+    // that can be reached from that node and counts the number of visits made
+    // to each node in the graph.
     fn traverse_count_node_visits(&self) -> HashMap<usize, usize> {
         if self.node_storage.len() > 0 {
+            // Pick the first node as a starting point, and count number of visits after
+            // traversal
             let node_id = self.node_storage[0].node_id;
             self.traverse_count_node_visits_from_node(node_id).expect("Node id should be present - selected as first in list")
         } else {
@@ -121,9 +234,12 @@ impl Graph {
         }
     }
 
+    // Starting from the given node, performs a search through all nodes
+    // that can be reached from that node and counts the number of visits made
+    // to each node in the graph. Returns an error if the node is not in the graph.
     fn traverse_count_node_visits_from_node(&self, node_id: usize) -> Result<HashMap<usize, usize>, GraphError> {
-        let mut node_visits: HashMap<usize, usize> = HashMap::new();
-        node_visits.insert(node_id, 1);
+        let mut node_visit_counts: Counter<usize> = Counter::new();
+        node_visit_counts.increment(node_id);
 
         let mut used_edges: HashSet<(usize, usize)> = HashSet::new();
         let mut edge_stack: Vec<(usize, usize)> = self._get_edge_list(node_id)?;
@@ -141,59 +257,20 @@ impl Graph {
                 // Visit the node this edge points to
                 let next_node = edge.1;
 
-                // Update the count
-                match node_visits.get_mut(&next_node) {
-                    Some(visit_count) => *visit_count += 1,
-                    None => {
-                        debug!("First visit to node {}", next_node);
-                        node_visits.insert(next_node, 1);
+                // Update the count for this visit to node next_node
+                let already_visited = node_visit_counts.increment(next_node);
+                if !already_visited {
+                    debug!("First visit to node {}", next_node);
 
-                        // If this is our first visit, add all edges onto the stack
-                        match self._get_edge_list(next_node) {
-                            Ok(mut new_nodes_to_visit) => edge_stack.append(&mut new_nodes_to_visit),
-                            Err(error) => panic!("Graph inconsistent - node should be present as we found it in an edge {:?}. Error: {:?}", edge, error),
-                        };
-                    },
+                    // If this is our first visit, add all edges onto the stack
+                    match self._get_edge_list(next_node) {
+                        Ok(mut new_nodes_to_visit) => edge_stack.append(&mut new_nodes_to_visit),
+                        Err(error) => panic!("Graph inconsistent - node should be present as we found it through an edge {:?}. Error: {:?}", edge, error),
+                    };
                 }
             }
         }
-        Ok(node_visits)
-    }
-
-    /// Returns true if all nodes are in one connected component, false otherwise
-    pub fn is_connected(&self) -> bool {
-        let mut connected = true;
-        if self.num_nodes > 0 {
-            let node_visits = self.traverse_count_node_visits();
-            for node_id in self.node_map.keys() {
-                if !node_visits.contains_key(node_id) {
-                    connected = false;
-                    warn!("Node never reached {}", node_id);
-                }
-            }
-        }
-        connected
-    }
-
-    /// Counts cycles in the graph, with the assumption that it is connected
-    pub fn count_cycles(&self) -> usize {
-        self.count_edges() + 1 - self.num_nodes
-    }
-
-    pub fn find_leaves(&self) -> Vec<usize> {
-        let mut leaves = vec![];
-        for node_id in self.node_map.keys() {
-            match self.get_node(*node_id) {
-                Ok(node) => {
-                    // A leaf is a node which has only one edge
-                    if node.connected_nodes.len() <= 1 {
-                        leaves.push(*node_id);
-                    }
-                },
-                Err(error) => panic!("Graph found to be inconsistent in search for leaves: {:?}", error),
-            };
-        }
-        leaves
+        Ok(node_visit_counts.into_hashmap())
     }
 
     fn _get_edge_list(&self, node_id: usize) -> Result<Vec<(usize, usize)>, GraphError> {
@@ -209,9 +286,9 @@ impl Graph {
     /// Given two node IDs, split the graph into two connected components, one containing
     /// first_node and one containing second_node.
     pub fn partition_graph(&self, first_node: usize, second_node: usize) -> Result<(Vec<usize>, Vec<usize>), GraphError> {
-        let mut node_visits: HashMap<usize, usize> = HashMap::new();
-        node_visits.insert(first_node, 1);
-        node_visits.insert(second_node, 1);
+        let mut node_visit_counts: HashMap<usize, usize> = HashMap::new();
+        node_visit_counts.insert(first_node, 1);
+        node_visit_counts.insert(second_node, 1);
 
         let mut first_node_set: HashSet<usize> = HashSet::new();
         first_node_set.insert(first_node);
@@ -284,9 +361,9 @@ impl Graph {
 
         while let Some(unvisited_node_id) = self.first_node_not_in_set(&nodes_visited) {
             match self.traverse_count_node_visits_from_node(unvisited_node_id) {
-                Ok(node_visits) => {
+                Ok(node_visit_counts) => {
                     let mut component: Vec<usize> = vec![];
-                    for node_id in node_visits.keys() {
+                    for node_id in node_visit_counts.keys() {
                         component.push(*node_id);
                         nodes_visited.insert(*node_id);
                     }

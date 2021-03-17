@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::hash::Hash;
+
 use ndarray::{IntoNdProducer, AssignElem};
 use ndarray::{s, Array2};
 use ndarray::Zip;
@@ -34,3 +37,35 @@ pub fn binarise_array<T: Num + Clone>(a: &Array2<T>) -> Array2<u8> {
 pub fn binarise_array_threshold<T: Num + Clone + Signed + PartialOrd>(a: &Array2<T>, thresh: T) -> Array2<u8> {
     a.mapv(|x| (x.abs() > thresh) as u8)
 }
+
+pub struct Counter<T: Eq + Hash> {
+    counts: HashMap<T, usize>,
+}
+
+impl<T: Eq + Hash> Counter<T> {
+    pub fn new() -> Counter<T> {
+        Counter {
+            counts: HashMap::new(),
+        }
+    }
+
+    pub fn increment(&mut self, key: T) -> bool {
+        let already_present: bool;
+        match self.counts.get_mut(&key) {
+            Some(count) => {
+                *count += 1;
+                already_present = true;
+            },
+            None => {
+                self.counts.insert(key, 1);
+                already_present = false;
+            }
+        };
+        already_present
+    }
+
+    pub fn into_hashmap(self) -> HashMap<T, usize> {
+        self.counts
+    }
+}
+
