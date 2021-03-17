@@ -594,19 +594,19 @@ mod tests {
     #[test]
     fn test_components_after_node_removal() {
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0)]);
-        assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4]]);
-        assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4]]);
+        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4]]);
 
         let graph = Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0), (0, 5)]);
-        assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4, 5]]);
-        assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4], vec![5]]);
+        assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4, 5]]);
+        assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4], vec![5]]);
 
         let mut graph = Graph::new_from_edges(vec![(0, 1)]);
         println!("{:#?}", graph);
-        assert_eq!(graph.components_after_deleting_node(0).unwrap(), vec![vec![1]]);
+        assert_eq!(graph.components_after_deleting_node(0), vec![vec![1]]);
         check_graph(&graph, 1, 0);
         println!("{:#?}", graph);
-        assert_eq!(graph.components_after_deleting_node(1).unwrap(), Vec::<Vec<usize>>::new());
+        assert_eq!(graph.components_after_deleting_node(1), Vec::<Vec<usize>>::new());
         check_graph(&graph, 0, 0);
     }
 }
