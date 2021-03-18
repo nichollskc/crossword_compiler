@@ -300,8 +300,8 @@ impl Graph {
     ///
     /// ```
     /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (1, 2), (2, 0), (0, 3), (3, 4), (4, 0), (0, 5)]);
-    /// assert_eq!(graph.clone().components_after_deleting_node(1).unwrap(), vec![vec![0, 2, 3, 4, 5]]);
-    /// assert_eq!(graph.clone().components_after_deleting_node(0).unwrap(), vec![vec![1, 2], vec![3, 4], vec![5]]);
+    /// assert_eq!(graph.clone().components_after_deleting_node(1), vec![vec![0, 2, 3, 4, 5]]);
+    /// assert_eq!(graph.clone().components_after_deleting_node(0), vec![vec![1, 2], vec![3, 4], vec![5]]);
     /// ```
     pub fn components_after_deleting_node(&mut self, node_id: usize) -> Vec<Vec<usize>> {
         self.delete_node(node_id);
@@ -314,7 +314,7 @@ impl Graph {
     ///
     /// ```
     /// let graph = crossword::graph::Graph::new_from_edges(vec![(0, 1), (2, 3)]);
-    /// assert_eq!(graph.get_connected_components().unwrap(), vec![vec![0, 1], vec![2, 3]]);
+    /// assert_eq!(graph.get_connected_components(), vec![vec![0, 1], vec![2, 3]]);
     /// ```
     pub fn get_connected_components(&self) -> Vec<Vec<usize>> {
         let mut components: Vec<Vec<usize>> = vec![];
