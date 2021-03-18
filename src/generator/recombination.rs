@@ -1,3 +1,8 @@
+use rand::SeedableRng;
+use rand::seq::IteratorRandom;
+use rand::rngs::StdRng;
+use rand::Rng;
+
 use super::CrosswordGridAttempt;
 use super::CrosswordGenerator;
 
@@ -22,23 +27,30 @@ impl CrosswordGenerator {
     }
 
     pub fn perform_recombination(&mut self, seed: u64) {
+        let mut rng = StdRng::seed_from_u64(seed);
+
         let gametes = self.generate_partitions(5, seed);
+        let mut first_indices: Vec<usize> = (0..gametes.len()).choose_multiple(&mut rng, self.settings.num_per_generation);
+
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
-        for i in 0..gametes.len() {
-            for j in 0..gametes.len() {
-                let mut first = gametes[i].clone();
-                let second = &gametes[j];
-                let success = first.grid.try_merge_with_grid(&second.grid);
+        while let Some(first_index) = first_indices.pop() {
+            let attempts = 5;
+            let mut i = 0;
+            let mut success = false;
+            while i < attempts && !success {
+                let second_index = rng.gen_range(0, gametes.len());
+                let mut first = gametes[first_index].clone();
+                let second = &gametes[second_index];
+                success = first.grid.try_merge_with_grid(&second.grid);
                 if success {
-                    println!("Successful recombination with {}\n{}",
+                    println!("Successful recombination with\n{}\n{}",
                              second.grid.to_string(),
                              first.grid.to_string());
                     recombined.push(first);
                 }
+                i += 1;
             }
         }
 
-//        let gamete_strings: Vec<String> = gametes.iter().map(|x| x.grid.to_string()).collect();
-//        println!("Gametes\n{}", gamete_strings.join("\n\n"));
     }
 }
