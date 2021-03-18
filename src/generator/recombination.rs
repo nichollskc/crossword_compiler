@@ -33,16 +33,15 @@ impl CrosswordGenerator {
         let mut rng = StdRng::seed_from_u64(seed);
 
         let gametes = self.generate_partitions(10, seed);
-        let mut first_indices: Vec<usize> = (0..gametes.len()).choose_multiple(&mut rng, self.settings.num_per_generation);
+//        let mut first_indices: Vec<usize> = (0..gametes.len().collect(); //).choose_multiple(&mut rng, self.settings.num_per_generation);
+        let mut first_index = 0;
 
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
-        while let Some(first_index) = first_indices.pop() {
-            let attempts = 40;
-            let mut i = 0;
+        while first_index < gametes.len() {
+            let mut second_index = 0;
             let mut success = false;
             let mut min_overlaps = 1;
-            while i < attempts {
-                let second_index = rng.gen_range(0, gametes.len());
+            while second_index < first_index {
                 let mut first = gametes[first_index].clone();
                 let second = &gametes[second_index];
                 let success = first.grid.try_merge_with_grid(&second.grid, min_overlaps);
@@ -55,11 +54,12 @@ impl CrosswordGenerator {
                     recombined.push(first);
                     min_overlaps += 1;
                 }
-                i += 1;
+                second_index += 1;
             }
-            if !success {
+            if min_overlaps == 1 {
                 info!("Failed to find grid to recombine with\n{}", gametes[first_index].grid.to_string());
             }
+            first_index += 1;
         }
 
         self.current_generation_ancestors.append(&mut recombined);
