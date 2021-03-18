@@ -68,4 +68,3 @@ impl<T: Eq + Hash> Counter<T> {
         self.counts
     }
 }
-

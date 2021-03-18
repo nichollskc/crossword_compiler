@@ -34,3 +34,12 @@ file:///Users/kath/docs/Programming/rust/crossword/flamegraph.svg
 # Further improvements
 
 - Attempt to combine two grids
+
+# Code coverage
+
+Travis build set up to use grcov and submit to codecov
+
+# Error handling/logging
+
+warn! should be used whenever we have reached a potentially bad state, but we can recover. The state should be one that should be considered bad by all callers (e.g. a graph has an edge where the nodes are not present).
+If the state is not universally considered bad, an error should be returned by the function and the caller can decide whether it's fatal or not.

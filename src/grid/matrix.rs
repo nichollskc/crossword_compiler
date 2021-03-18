@@ -147,6 +147,7 @@ impl CrosswordGridMatrix {
 
         let nonempty_cells_after_merge: Array2<u8> = utils::binarise_array_threshold(&padded1.matrix, 1)
                                                      + utils::binarise_array_threshold(&padded2.matrix, 1);
+        info!("After merging: {:?}", nonempty_cells_after_merge);
         let squares_present = look_for_squares(&nonempty_cells_after_merge);
         info!("Grids overlap: {}, no mismatches: {}, squares: {}", grids_overlap, no_mismatches, squares_present);
 
@@ -184,7 +185,7 @@ impl CrosswordGridMatrix {
         }
 
         if let Some(result) = best_result {
-            Some((result.row_shift, result.col_shift))   
+            Some((result.row_shift, result.col_shift))
         } else {
             None
         }
@@ -210,11 +211,15 @@ impl CrosswordGrid {
         let other_matrix = other.to_matrix();
         let configuration = self_matrix.find_best_probably_compatible_configuration(&other_matrix);
         info!("Found configuration for recombination: {:?}", configuration);
+
         if let Some((row_shift, col_shift)) = configuration {
             self_matrix.assess_compatability(&other_matrix, row_shift, col_shift);
+            debug!("Found configuration for recombination: {:?}", configuration);
             let shifted_configuration = (row_shift - self_matrix.row_shift + other_matrix.row_shift,
                                          col_shift - self_matrix.col_shift + other_matrix.col_shift);
             info!("Shifted configuration for recombination: {:?}", shifted_configuration);
+            info!("\n{:?}\n{:?}", self_matrix, other_matrix);
+            info!("\n{}\n{}", self.to_string(), other.to_string());
             Some(shifted_configuration)
         } else {
             None

@@ -16,6 +16,7 @@ mod properties;
 mod pdf_conversion;
 mod matrix;
 mod merge;
+mod validity;
 
 use word::Word;
 use cell::Cell;
@@ -25,14 +26,8 @@ pub use pdf_conversion::CrosswordPrinter;
 static VALID_ANSWERCHARS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_— -;:,.?!@'`\"&*()$£%";
 
-#[derive(Error,Debug)]
-pub enum CrosswordError {
-    #[error("Adjacent cells {0:?} {1:?} incompatible - no word found that links them.")]
-    AdjacentCellsNoLinkWord(Location, Location),
-
-    #[error("Adjacent cells {0:?} {1:?} incompatible - should have a shared word which links them, but the words don't match: {2} {3}")]
-    AdjacentCellsMismatchedLinkWord(Location, Location, usize, usize),
-
+#[derive(Error,Debug,PartialEq)]
+pub enum CellError {
     #[error("Attempted to add word {0} to cell in direction {2:?} but cell already has id {1}")]
     WordIdMismatch(usize, usize, Direction),
 
@@ -41,6 +36,18 @@ pub enum CrosswordError {
 
     #[error("Attempted to fill a cell already marked as black")]
     FillBlack,
+}
+
+#[derive(Error,Debug,PartialEq)]
+pub enum CrosswordError {
+    #[error("Adjacent cells {0:?} {1:?} incompatible - no word found that links them.")]
+    AdjacentCellsNoLinkWord(Location, Location),
+
+    #[error("Adjacent cells {0:?} {1:?} incompatible - should have a shared word which links them, but the words don't match: {2} {3}")]
+    AdjacentCellsMismatchedLinkWord(Location, Location, usize, usize),
+
+    #[error("Error updating cell at location {0:?}")]
+    CellError(Location, CellError),
 
     #[error("Cell {0:?} at start/end of word not empty. Last/first cell in word is {1:?}")]
     NonEmptyWordBoundary(Location, Location),
@@ -327,6 +334,7 @@ impl CrosswordGrid {
         if let Some(word) = self.word_map.get_mut(&word_id) {
             word.remove_placement();
         }
+        self.fit_to_size();
         debug!("Now have {} words in grid", self.word_map.len());
     }
 }
@@ -338,7 +346,7 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    fn test_adjacency() {
+    fn test_adjacency() -> Result<(), CrosswordError> {
         crate::logging::init_logger(true);
         let mut grid = CrosswordGrid::new_single_word("ALPHA");
         let arrival_word_id = grid.add_unplaced_word("ARRIVAL", "", None);
@@ -349,10 +357,10 @@ mod tests {
         grid.check_valid();
         debug!("{:#?}", grid);
 
-        assert!(grid.try_place_word_in_cell_connected(Location(0, 0), arrival_word_id, 0, Direction::Down));
-        assert!(grid.try_place_word_in_cell_connected(Location(0, 4), bear_word_id, 2, Direction::Down));
-        assert!(grid.try_place_word_in_cell_connected(Location(0, 2), cup_word_id, 2, Direction::Down));
-        assert!(grid.try_place_word_in_cell_connected(Location(3, 0), innards_word_id, 0, Direction::Across));
+        grid.place_word_in_cell(Location(0, 0), arrival_word_id, 0, Direction::Down)?;
+        grid.place_word_in_cell(Location(0, 4), bear_word_id, 2, Direction::Down)?;
+        grid.place_word_in_cell(Location(0, 2), cup_word_id, 2, Direction::Down)?;
+        grid.place_word_in_cell(Location(3, 0), innards_word_id, 0, Direction::Across)?;
         debug!("{:#?}", grid);
         grid.check_valid();
 
@@ -363,5 +371,6 @@ mod tests {
                                      [0, 1, 1, 0, 0, 0],
                                      [1, 0, 0, 0, 0, 0],
                                      [0, 0, 0, 0, 0, 0]]);
+        Ok(())
     }
 }

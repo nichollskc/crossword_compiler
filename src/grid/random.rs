@@ -160,11 +160,11 @@ impl CrosswordGrid {
         let mut attempt_iterator = PlacementAttemptIterator::new(&self, seed);
         while !success && keep_going {
             if let Some(attempt) = attempt_iterator.next() {
-                let result = self.try_place_word_in_cell(attempt.location,
-                                                         attempt.word_id,
-                                                         attempt.index_in_word,
-                                                         attempt.direction);
-                // @@@ Deal with failure - tidy up. Also check surrounding cells.
+                let result = self.place_word_in_cell(attempt.location,
+                                                     attempt.word_id,
+                                                     attempt.index_in_word,
+                                                     attempt.direction);
+                success = result.is_ok();
             } else {
                 // Out of possible placements to try!
                 keep_going = false;
@@ -328,12 +328,12 @@ mod tests {
         for attempt in PlacementAttemptIterator::new(grid, 13) {
             info!("Trying attempt {:?}", attempt);
             let mut grid_clone = grid.clone();
-            let success = grid_clone.try_place_word_in_cell_connected(attempt.location,
-                                                                      attempt.word_id,
-                                                                      attempt.index_in_word,
-                                                                      attempt.direction);
-            info!("Success for attempt {:?}: {}", attempt, success);
-            if success {
+            let result = grid_clone.place_word_in_cell(attempt.location,
+                                                       attempt.word_id,
+                                                       attempt.index_in_word,
+                                                       attempt.direction);
+            info!("Success for attempt {:?}: {:?}", attempt, result);
+            if result.is_ok() {
                 info!("Resulting grid\n{}", grid_clone.to_string());
                 num_successes += 1;
             } else {

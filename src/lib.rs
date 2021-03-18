@@ -4,6 +4,9 @@ use std::collections::HashMap;
 #[macro_use]
 extern crate ndarray;
 
+#[macro_use]
+extern crate matches;
+
 pub mod graph;
 pub mod grid;
 pub mod logging;

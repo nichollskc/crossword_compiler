@@ -45,12 +45,12 @@ impl CrosswordGrid {
                 assert!(!this_word.is_placed());
 
                 let shifted_location = start_location.relative_location(row_shift, col_shift);
-                let result = self.place_word_in_cell(shifted_location, *word_id, 0, direction);
+                let result = self.no_check_place_word_in_cell(shifted_location, *word_id, 0, direction);
                 assert!(result.is_ok(), "Failed to place word {} in location {:?}. Other word: {:?}", word_id, shifted_location, other_word);
             }
         }
         self.check_valid();
-        self.check_word_placement_valid()
+        self.check_all_word_placement_valid()
     }
 
     fn grow_to_fit_merge(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) {
@@ -90,11 +90,11 @@ mod tests {
         grid2.update_word_id(trout_id, 102);
 
         println!("{:#?}", grid2);
-        assert!(grid2.try_place_word_in_cell_connected(Location(0, 4), 101, 4, Direction::Down));
-        assert!(grid2.try_place_word_in_cell_connected(Location(0, 3), 102, 0, Direction::Down));
-        
+        assert!(grid2.place_word_in_cell(Location(0, 4), 101, 4, Direction::Down).is_ok());
+        assert!(grid2.place_word_in_cell(Location(0, 3), 102, 0, Direction::Down).is_ok());
+
         grid1.add_unplaced_word_at_id("SIXTY", "", 100, None);
-        grid1.add_unplaced_word_at_id("RUSTY", "", 101, None); 
+        grid1.add_unplaced_word_at_id("RUSTY", "", 101, None);
         grid1.add_unplaced_word_at_id("TROUT", "", 102, None);
         println!("{:#?}", grid1);
         println!("{:#?}", grid2);

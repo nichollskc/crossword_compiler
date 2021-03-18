@@ -1,8 +1,7 @@
-use log::{debug,warn};
 use std::fmt;
 
 use super::Direction;
-use super::CrosswordError;
+use super::CellError;
 
 #[derive(Clone,Copy,Debug)]
 enum FillStatus {
@@ -92,7 +91,7 @@ impl Cell {
         }
     }
 
-    pub fn add_word(&mut self, word_id: usize, letter: char, direction: Direction) -> Result<(), CrosswordError> {
+    pub fn add_word(&mut self, word_id: usize, letter: char, direction: Direction) -> Result<(), CellError> {
         let mut result = Ok(());
 
         let mut across_word_id: Option<usize> = None;
@@ -113,7 +112,7 @@ impl Cell {
                         down_word_id = existing_down;
                         if existing_across.is_some() && existing_across != across_word_id {
                             // Existing ID this is a problem if the new id doesn't match the old ID
-                            result = Err(CrosswordError::WordIdMismatch(word_id,
+                            result = Err(CellError::WordIdMismatch(word_id,
                                                                         existing_across.expect("Checked this exists"),
                                                                         direction));
                         }
@@ -124,7 +123,7 @@ impl Cell {
 
                         if existing_down.is_some() && existing_down != down_word_id {
                             // Existing ID this is a problem if the new id doesn't match the old ID
-                            result = Err(CrosswordError::WordIdMismatch(word_id,
+                            result = Err(CellError::WordIdMismatch(word_id,
                                                                         existing_down.expect("Checked this exists"),
                                                                         direction));
                         }
@@ -132,11 +131,11 @@ impl Cell {
                 }
 
                 if filled_cell.letter != letter {
-                    result = Err(CrosswordError::LetterMismatch(filled_cell.letter,
+                    result = Err(CellError::LetterMismatch(filled_cell.letter,
                                                                 letter));
                 }
             },
-            FillStatus::Black => result = Err(CrosswordError::FillBlack),
+            FillStatus::Black => result = Err(CellError::FillBlack),
             FillStatus::Empty => {},
         }
 
@@ -145,7 +144,7 @@ impl Cell {
                                                                   across_word_id,
                                                                   down_word_id));
         }
-        result 
+        result
     }
 
     pub fn get_word_id(&self, direction: Direction) -> Option<usize> {
