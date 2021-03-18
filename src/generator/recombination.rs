@@ -26,33 +26,34 @@ impl CrosswordGenerator {
                 }
             }
         }
-        self.restrict_to_unique(partitions)
+        self.pick_best_varied(partitions, self.settings.num_per_generation * 2)
     }
 
     pub fn perform_recombination(&mut self, seed: u64) {
         let mut rng = StdRng::seed_from_u64(seed);
 
-        let gametes = self.generate_partitions(5, seed);
+        let gametes = self.generate_partitions(10, seed);
         let mut first_indices: Vec<usize> = (0..gametes.len()).choose_multiple(&mut rng, self.settings.num_per_generation);
 
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
         while let Some(first_index) = first_indices.pop() {
-            let attempts = 20;
+            let attempts = 40;
             let mut i = 0;
             let mut success = false;
-            while i < attempts && !success {
+            let mut min_overlaps = 1;
+            while i < attempts {
                 let second_index = rng.gen_range(0, gametes.len());
                 let mut first = gametes[first_index].clone();
                 let second = &gametes[second_index];
-                let result = first.grid.try_merge_with_grid(&second.grid);
-				success = result.0;
-				let overlaps = result.1;
+                let success = first.grid.try_merge_with_grid(&second.grid, min_overlaps);
                 if success {
-                    info!("Successful recombination with\n{}\n{}",
-                             second.grid.to_string(),
-                             first.grid.to_string());
+                    info!("Successful recombination with at least {} overlaps \n{}\n{}",
+                          min_overlaps,
+                          second.grid.to_string(),
+                          first.grid.to_string());
                     first.increment_move_count(MoveType::Recombination);
                     recombined.push(first);
+                    min_overlaps += 1;
                 }
                 i += 1;
             }

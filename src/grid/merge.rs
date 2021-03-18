@@ -16,23 +16,26 @@ impl CrosswordGrid {
         compatible
     }
 
-    pub fn try_merge_with_grid(&mut self, other: &CrosswordGrid) -> (bool, usize) {
+    pub fn try_merge_with_grid(&mut self, other: &CrosswordGrid, min_overlaps: usize) -> bool {
         // First check if the word lists are compatible i.e. that they don't share any placed words
         let mut success = self.words_placed_compatible(other);
-        let mut overlaps = 0;
         if success {
             // Then look to see if there is a way for the grids to fit together
             let configuration = self.find_best_probably_compatible_configuration_for_merge(other);
             success = if let Some(((row_shift, col_shift), num_overlaps)) = configuration {
-                overlaps = num_overlaps;
-                // Try the merge, but in case of error note this as a failure and continue
-                self.merge_with_grid(other, row_shift, col_shift).is_ok()
+                if num_overlaps >= min_overlaps {
+                    // Try the merge, but in case of error note this as a failure and continue
+                    self.merge_with_grid(other, row_shift, col_shift).is_ok()
+                } else {
+                    // Just fail automatically if there weren't enough overlaps
+                    false
+                }
             } else {
                 // If no valid configuration, this is a failure
                 false
             }
         }
-        (success, overlaps)
+        success
     }
 
     pub fn merge_with_grid(&mut self, other: &CrosswordGrid, row_shift: isize, col_shift: isize) -> Result<(), CrosswordError> {
