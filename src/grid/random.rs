@@ -160,10 +160,11 @@ impl CrosswordGrid {
         let mut attempt_iterator = PlacementAttemptIterator::new(&self, seed);
         while !success && keep_going {
             if let Some(attempt) = attempt_iterator.next() {
-                success = self.try_place_word_in_cell_connected(attempt.location,
-                                                                attempt.word_id,
-                                                                attempt.index_in_word,
-                                                                attempt.direction);
+                let result = self.try_place_word_in_cell(attempt.location,
+                                                         attempt.word_id,
+                                                         attempt.index_in_word,
+                                                         attempt.direction);
+                // @@@ Deal with failure - tidy up. Also check surrounding cells.
             } else {
                 // Out of possible placements to try!
                 keep_going = false;

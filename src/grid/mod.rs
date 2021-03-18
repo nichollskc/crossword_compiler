@@ -27,10 +27,35 @@ static VALID_CLUECHARS: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV
 
 #[derive(Error,Debug)]
 pub enum CrosswordError {
-    #[error("Two adjacent cells are incompatible due to absence of shared word: {0:?} {1:?}")]
+    #[error("Adjacent cells {0:?} {1:?} incompatible - no word found that links them.")]
     AdjacentCellsNoLinkWord(Location, Location),
+
+    #[error("Adjacent cells {0:?} {1:?} incompatible - should have a shared word which links them, but the words don't match: {2} {3}")]
+    AdjacentCellsMismatchedLinkWord(Location, Location, usize, usize),
+
+    #[error("Attempted to add word {0} to cell in direction {2:?} but cell already has id {1}")]
+    WordIdMismatch(usize, usize, Direction),
+
+    #[error("Attempted to add letter {0} to cell, but cell already has letter {1}")]
+    LetterMismatch(char, char),
+
+    #[error("Attempted to fill a cell already marked as black")]
+    FillBlack,
+
+    #[error("Cell {0:?} at start/end of word not empty. Last/first cell in word is {1:?}")]
+    NonEmptyWordBoundary(Location, Location),
+
     #[error("Cell not found in grid {0:?}")]
     CellNotFound(Location),
+
+    #[error("Word {1} with id {0} already placed at {2:?}")]
+    WordAlreadyPlaced(usize, String, Location),
+
+    #[error("Attempted to place word {1} with id {0} with invalid direction {2:?}")]
+    InvalidWordDirection(usize, String, Direction),
+
+    #[error("Word not found in grid object {0}")]
+    WordNotFound(usize),
 }
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Ord,PartialOrd,Hash)]
@@ -100,8 +125,22 @@ impl fmt::Debug for CrosswordGrid {
 }
 
 impl CrosswordGrid {
+    fn get_word(&self, word_id: usize) -> Result<&Word, CrosswordError> {
+        match self.word_map.get(&word_id) {
+            Some(word) => Ok(word),
+            None => Err(CrosswordError::WordNotFound(word_id)),
+        }
+    }
+
     fn get_cell(&self, location: &Location) -> Result<&Cell, CrosswordError> {
         match self.cell_map.get(location) {
+            Some(cell) => Ok(cell),
+            None => Err(CrosswordError::CellNotFound(*location)),
+        }
+    }
+
+    fn get_cell_mut(&mut self, location: &Location) -> Result<&mut Cell, CrosswordError> {
+        match self.cell_map.get_mut(location) {
             Some(cell) => Ok(cell),
             None => Err(CrosswordError::CellNotFound(*location)),
         }
@@ -181,6 +220,18 @@ impl CrosswordGrid {
             graph.add_node(*word_id);
         }
         graph
+    }
+
+    pub fn to_string_with_coords(&self) -> String {
+        let mut string: String = String::from("");
+        let coord_string: String = format!("Top-left: ({}, {}), bottom-right: ({}, {})\n",
+                                           self.top_left_cell_index.0 + 1,
+                                           self.top_left_cell_index.1 + 1,
+                                           self.bottom_right_cell_index.0 - 1,
+                                           self.bottom_right_cell_index.1 - 1);
+        string.push_str(&coord_string);
+        string.push_str(&self.to_string());
+        string
     }
 
     pub fn to_string(&self) -> String {

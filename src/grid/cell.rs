@@ -2,6 +2,7 @@ use log::{debug,warn};
 use std::fmt;
 
 use super::Direction;
+use super::CrosswordError;
 
 #[derive(Clone,Copy,Debug)]
 enum FillStatus {
@@ -91,8 +92,8 @@ impl Cell {
         }
     }
 
-    pub fn add_word(&mut self, word_id: usize, letter: char, direction: Direction) -> bool {
-        let mut success = true;
+    pub fn add_word(&mut self, word_id: usize, letter: char, direction: Direction) -> Result<(), CrosswordError> {
+        let mut result = Ok(());
 
         let mut across_word_id: Option<usize> = None;
         let mut down_word_id: Option<usize> = None;
@@ -112,8 +113,9 @@ impl Cell {
                         down_word_id = existing_down;
                         if existing_across.is_some() && existing_across != across_word_id {
                             // Existing ID this is a problem if the new id doesn't match the old ID
-                            warn!("Existing across word ID doesn't match new one {} {}", existing_across.unwrap(), across_word_id.unwrap());
-                            success = false
+                            result = Err(CrosswordError::WordIdMismatch(word_id,
+                                                                        existing_across.expect("Checked this exists"),
+                                                                        direction));
                         }
                     },
                     Direction::Down => {
@@ -122,29 +124,35 @@ impl Cell {
 
                         if existing_down.is_some() && existing_down != down_word_id {
                             // Existing ID this is a problem if the new id doesn't match the old ID
-                            warn!("Existing down word ID doesn't match new one {} {}", existing_down.unwrap(), down_word_id.unwrap());
-                            success = false
+                            result = Err(CrosswordError::WordIdMismatch(word_id,
+                                                                        existing_down.expect("Checked this exists"),
+                                                                        direction));
                         }
                     },
                 }
 
                 if filled_cell.letter != letter {
-                    debug!("Existing letter doesn't match new one {} {}", filled_cell.letter, letter);
-                    success = false;
+                    result = Err(CrosswordError::LetterMismatch(filled_cell.letter,
+                                                                letter));
                 }
             },
+            FillStatus::Black => result = Err(CrosswordError::FillBlack),
             FillStatus::Empty => {},
-            FillStatus::Black => {
-                success = false
-            },
         }
 
-        if success {
+        if result.is_ok() {
             self.fill_status = FillStatus::Filled(FilledCell::new(letter,
                                                                   across_word_id,
                                                                   down_word_id));
         }
-        success
+        result 
+    }
+
+    pub fn get_word_id(&self, direction: Direction) -> Option<usize> {
+        match direction {
+            Direction::Across => self.get_across_word_id(),
+            Direction::Down => self.get_down_word_id(),
+        }
     }
 
     pub fn get_down_word_id(&self) -> Option<usize> {

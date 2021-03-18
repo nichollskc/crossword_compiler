@@ -45,8 +45,8 @@ impl CrosswordGrid {
                 assert!(!this_word.is_placed());
 
                 let shifted_location = start_location.relative_location(row_shift, col_shift);
-                let success = self.place_word_in_cell(shifted_location, *word_id, 0, direction);
-                assert!(success, "Failed to place word {} in location {:?}. Other word: {:?}", word_id, shifted_location, other_word);
+                let result = self.place_word_in_cell(shifted_location, *word_id, 0, direction);
+                assert!(result.is_ok(), "Failed to place word {} in location {:?}. Other word: {:?}", word_id, shifted_location, other_word);
             }
         }
         self.check_valid();
