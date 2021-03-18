@@ -20,6 +20,7 @@ enum MoveType {
     Partition,
     PlaceWord,
     PruneLeaves,
+    Recombination,
 }
 
 fn generate_move_types_vec(place_word_weight: usize,
@@ -125,6 +126,7 @@ impl CrosswordGridAttempt {
         move_counts.insert(MoveType::PlaceWord, 0.0);
         move_counts.insert(MoveType::PruneLeaves, 0.0);
         move_counts.insert(MoveType::Partition, 0.0);
+        move_counts.insert(MoveType::Recombination, 0.0);
         CrosswordGridAttempt {
             summary_score: score.summary as isize,
             score,
@@ -186,7 +188,7 @@ impl CrosswordGeneratorSettings {
             weight_num_intersect: *settings.get("weight-num-intersect").unwrap_or(&100),
             weight_avg_intersect: *settings.get("weight-avg-intersect").unwrap_or(&5000),
             weight_words_placed: *settings.get("weight-words-placed").unwrap_or(&10),
-            move_types: generate_move_types_vec(6, 2, 1),
+            move_types: generate_move_types_vec(6, 2, 0),
         }
     }
 }
@@ -288,7 +290,8 @@ impl CrosswordGenerator {
                 },
                 MoveType::Partition => {
                     self.partition_keep_best(&mut copied, extended_seed);
-                }
+                },
+                MoveType::Recombination => {},
             }
             moves += 1;
         }

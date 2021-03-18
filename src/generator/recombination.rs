@@ -1,3 +1,5 @@
+use log::info;
+
 use rand::SeedableRng;
 use rand::seq::IteratorRandom;
 use rand::rngs::StdRng;
@@ -5,6 +7,7 @@ use rand::Rng;
 
 use super::CrosswordGridAttempt;
 use super::CrosswordGenerator;
+use super::MoveType;
 
 impl CrosswordGenerator {
     fn generate_partitions(&self,
@@ -34,23 +37,30 @@ impl CrosswordGenerator {
 
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
         while let Some(first_index) = first_indices.pop() {
-            let attempts = 5;
+            let attempts = 20;
             let mut i = 0;
             let mut success = false;
             while i < attempts && !success {
                 let second_index = rng.gen_range(0, gametes.len());
                 let mut first = gametes[first_index].clone();
                 let second = &gametes[second_index];
-                success = first.grid.try_merge_with_grid(&second.grid);
+                let result = first.grid.try_merge_with_grid(&second.grid);
+				success = result.0;
+				let overlaps = result.1;
                 if success {
-                    println!("Successful recombination with\n{}\n{}",
+                    info!("Successful recombination with\n{}\n{}",
                              second.grid.to_string(),
                              first.grid.to_string());
+                    first.increment_move_count(MoveType::Recombination);
                     recombined.push(first);
                 }
                 i += 1;
             }
+            if !success {
+                info!("Failed to find grid to recombine with\n{}", gametes[first_index].grid.to_string());
+            }
         }
 
+        self.current_generation_ancestors.append(&mut recombined);
     }
 }
