@@ -45,7 +45,9 @@ fn main() {
     let results = generator.generate();
     for grid in results.iter() {
         println!("{}", grid.to_string());
-//        let mut printer = crossword::grid::CrosswordPrinter::new(grid.clone());
-//        printer.print_to_pdf("test");
     }
+
+    let grid = &results[0];
+    let mut printer = crossword::grid::CrosswordPrinter::new(grid.clone(), true, true);
+    printer.print_to_pdf("test");
 }

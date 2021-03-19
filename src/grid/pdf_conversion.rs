@@ -1,18 +1,13 @@
 use std::collections::HashSet;
 use std::fs;
 use std::process::Command;
-use std::io::Write;
 
-
-use handlebars::{Handlebars, HelperDef, RenderError, RenderContext, Helper, Context, JsonRender, HelperResult, Output};
+use handlebars::{Handlebars, RenderContext, Helper, Context, JsonRender, HelperResult, Output};
 use serde_json::{Value,json};
 
 use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
-
-static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage{multicol}\\usepackage[margin=0.5in]{geometry}\\usepackage[unboxed,small]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3 \\\\}\n\\begin{document}\n";
-static DOCUMENT_END: &str = "\n\n\\end{document}";
 
 fn wrap_in_braces(h: &Helper,
                   _: &Handlebars,
@@ -29,18 +24,45 @@ fn wrap_in_braces(h: &Helper,
 
 #[derive(Debug)]
 pub struct CrosswordPrinter {
+    // Grid to be printed
     grid: CrosswordGrid,
+    // Keeps track of what number clue we have printed so far
     last_clue_number: usize,
+    // Keeps track of which words we have already numbered
     visited_word_ids: HashSet<usize>,
+    // Vector of information about each across clue (in order)
     across_clues: Vec<Value>,
+    // Vector of information about each down clue (in order)
     down_clues: Vec<Value>,
+    // Grid so far, with each cell formatted
     printed_grid: String,
+    // Format to use for an empty cell e.g. {} for white or * for black
     empty_cell_format: String,
+    // Format to use for a filled cell e.g. Sf to print the solution (and the number!)
     filled_cell_format: String,
+    // If true, don't put any answer information into the latex document
+    obscure_answers: bool,
 }
 
 impl CrosswordPrinter {
-    pub fn new_with_settings(grid: CrosswordGrid, empty_cell_format: &str, filled_cell_format: &str) -> Self {
+    pub fn new(grid: CrosswordGrid, blank_cells_black: bool, show_solution: bool) -> Self {
+        let empty_cell_format = if blank_cells_black {
+            "    *"
+        } else {
+            "   {}"
+        };
+        let filled_cell_format = if show_solution {
+            "[Sf]"
+        } else {
+            ""
+        };
+        CrosswordPrinter::new_with_settings(grid, empty_cell_format, filled_cell_format, !show_solution)
+    }
+
+    fn new_with_settings(grid: CrosswordGrid,
+                         empty_cell_format: &str,
+                         filled_cell_format: &str,
+                         obscure_answers: bool) -> Self {
         CrosswordPrinter {
             grid,
             last_clue_number: 0,
@@ -50,18 +72,24 @@ impl CrosswordPrinter {
             printed_grid: String::new(),
             empty_cell_format: empty_cell_format.to_string(),
             filled_cell_format: filled_cell_format.to_string(),
+            obscure_answers,
         }
     }
 
-    pub fn new(grid: CrosswordGrid) -> Self {
-        CrosswordPrinter::new_with_settings(grid, "{}", "")
+    pub fn new_default(grid: CrosswordGrid) -> Self {
+        CrosswordPrinter::new_with_settings(grid, "   {}", "", true)
     }
 
     fn add_clue(&mut self, clue_number: usize, word_id: usize, across: bool) {
         let word = self.grid.word_map.get(&word_id).unwrap();
+        let answer = if self.obscure_answers {
+            ""
+        } else {
+            &word.word_text
+        };
         let clue_info = json!({
             "number": clue_number,
-            "answer": word.word_text,
+            "answer": answer,
             "clue": word.clue,
         });
         if across {
@@ -89,15 +117,21 @@ impl CrosswordPrinter {
                 down_is_new = self.visited_word_ids.insert(id);
             }
 
+            let letter = if self.obscure_answers {
+                'X'
+            } else {
+                cell.to_char()
+            };
+
             if across_is_new || down_is_new {
                 // First assign this cell a number to use for each clue
                 self.last_clue_number += 1;
                 cell_string = format!("|[{}]{}{}",
                                       self.last_clue_number,
                                       self.filled_cell_format,
-                                      cell.to_char());
+                                      letter);
             } else {
-                cell_string = format!("|{}{}", self.filled_cell_format, cell.to_char());
+                cell_string = format!("|[]{}  {}", self.filled_cell_format, letter);
             }
 
             if across_is_new {

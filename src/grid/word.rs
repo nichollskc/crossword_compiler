@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use super::Location;
 use super::Direction;
-use super::{VALID_CLUECHARS,VALID_ANSWERCHARS};
+use super::VALID_CLUECHARS;
 
 use crate::sanitise_string;
 
