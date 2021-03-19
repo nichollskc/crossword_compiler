@@ -6,7 +6,7 @@ use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
 
-static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage[unboxed]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3 \\\\}\n\\begin{document}\n";
+static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage{multicol}\\usepackage[margin=0.5in]{geometry}\\usepackage[unboxed,small]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3 \\\\}\n\\begin{document}\n";
 static DOCUMENT_END: &str = "\n\n\\end{document}";
 
 #[derive(Debug)]
@@ -17,20 +17,28 @@ pub struct CrosswordPrinter {
     across_clues: String,
     down_clues: String,
     printed_grid: String,
+    empty_cell_format: String,
+    filled_cell_format: String,
 }
 
 impl CrosswordPrinter {
-    pub fn new(grid: CrosswordGrid) -> Self {
+    pub fn new_with_settings(grid: CrosswordGrid, empty_cell_format: &str, filled_cell_format: &str) -> Self {
         let (rows, cols) = grid.get_grid_dimensions();
         let puzzle_definition = format!("\\begin{{Puzzle}}{{{}}}{{{}}}\n", cols, rows);
         CrosswordPrinter {
             grid,
             last_clue_number: 0,
             visited_word_ids: HashSet::new(),
-            across_clues: "\\section*{Across}\n".to_string(),
+            across_clues: "\\begin{multicols}{2}\\section*{Across}\n".to_string(),
             down_clues: "\\section*{Down}\n".to_string(),
             printed_grid: puzzle_definition,
+            empty_cell_format: empty_cell_format.to_string(),
+            filled_cell_format: filled_cell_format.to_string(),
         }
+    }
+
+    pub fn new(grid: CrosswordGrid) -> Self {
+        CrosswordPrinter::new_with_settings(grid, "{}", "")
     }
 
     fn add_clue(&mut self, clue_number: usize, word_id: usize, across: bool) {
@@ -64,9 +72,12 @@ impl CrosswordPrinter {
             if across_is_new || down_is_new {
                 // First assign this cell a number to use for each clue
                 self.last_clue_number += 1;
-                cell_string = format!("|[{}]{}", self.last_clue_number, cell.to_char());
+                cell_string = format!("|[{}]{}{}",
+                                      self.last_clue_number,
+                                      self.filled_cell_format,
+                                      cell.to_char());
             } else {
-                cell_string = format!("|{}", cell.to_char());
+                cell_string = format!("|{}{}", self.filled_cell_format, cell.to_char());
             }
 
             if across_is_new {
@@ -77,7 +88,7 @@ impl CrosswordPrinter {
             }
         } else {
             // This cell is blank, so just put black cell code
-            cell_string = "|*".to_string();
+            cell_string = format!("|{}", self.empty_cell_format);
         }
 
         self.printed_grid.push_str(&cell_string);
@@ -101,7 +112,12 @@ impl CrosswordPrinter {
             self.end_cell_row();
         }
 
-        format!("{}{}\\end{{Puzzle}}\n\n{}\n{}\n\n{}", DOCUMENT_START, self.printed_grid, self.across_clues, self.down_clues, DOCUMENT_END)
+        format!("{}{}\\end{{Puzzle}}\n\n{}\\columnbreak\n{}\\end{{multicols}}\n\n{}",
+                DOCUMENT_START,
+                self.printed_grid,
+                self.across_clues,
+                self.down_clues,
+                DOCUMENT_END)
     }
 
     pub fn print_to_file(&mut self, filename: &str) {
@@ -110,7 +126,7 @@ impl CrosswordPrinter {
 
     pub fn print_to_pdf(&mut self, filename_root: &str) {
         let tex_file = format!("{}.tex", filename_root);
-        //let pdf_file = format!("{}.pdf", filename_root);
+        let pdf_file = format!("{}.pdf", filename_root);
         self.print_to_file(&tex_file);
         Command::new("pdflatex")
             .arg("-output-directory")
@@ -118,5 +134,6 @@ impl CrosswordPrinter {
             .arg(tex_file)
             .output()
             .expect("Command failed");
+        println!("{}", pdf_file);
     }
 }
