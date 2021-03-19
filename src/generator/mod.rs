@@ -155,6 +155,7 @@ pub struct CrosswordGeneratorSettings {
     seed: u64,
     moves_between_scores: usize,
     num_children: usize,
+    num_partitions: usize,
     num_per_generation: usize,
     max_rounds: usize,
     min_rounds: usize,
@@ -178,6 +179,7 @@ impl CrosswordGeneratorSettings {
             seed: *settings.get("seed").unwrap_or(&13) as u64,
             moves_between_scores: *settings.get("moves-between-scores").unwrap_or(&4),
             num_children: *settings.get("num-children").unwrap_or(&15),
+            num_partitions: *settings.get("num-partitions").unwrap_or(&5),
             num_per_generation: *settings.get("num-per-gen").unwrap_or(&15),
             max_rounds: *settings.get("max-rounds").unwrap_or(&20),
             min_rounds: *settings.get("min-rounds").unwrap_or(&10),
@@ -467,23 +469,25 @@ impl CrosswordGenerator {
     }
 
     pub fn generate(&mut self) -> Vec<CrosswordGrid> {
+        let mut best_overall_score: isize = -1;
         let mut best_score: isize = self.get_current_best_score();
         let mut reached_convergence: bool = false;
         let mut last_generation_stringified = self.stringified_output();
-        info!("Round {}. Current best score is {:?}", self.round, best_score);
+        let mut rounds_no_increase = 0;
+        println!("Round {}. Current best score is {:?}", self.round, best_score);
 
         while !reached_convergence && self.round < self.settings.max_rounds {
             self.next_generation();
             best_score = self.get_current_best_score();
-            info!("Round {}. Average score is {}", self.round, self.get_average_scores());
-            info!("Round {}. Current best score is {:?}", self.round, best_score);
-            info!("Round {}. Move counts of best is {}", self.round, custom_hashmap_format(&self.current_generation_complete[0].move_counts,
+            println!("Round {}. Average score is {}", self.round, self.get_average_scores());
+            println!("Round {}. Current best score is {:?}", self.round, best_score);
+            println!("Round {}. Move counts of best is {}", self.round, custom_hashmap_format(&self.current_generation_complete[0].move_counts,
                                                                                            "best_count",
                                                                                            ":: "));
-            info!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts(),
+            println!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts(),
                                                                                         "average_count",
                                                                                         ":: "));
-            info!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts_ancestors(),
+            println!("Round {}. Average move counts {}", self.round, custom_hashmap_format(&self.average_move_counts_ancestors(),
                                                                                         "average_ancestor_count",
                                                                                         ":: "));
 
@@ -491,16 +495,24 @@ impl CrosswordGenerator {
             info!("This generation:\n{}", this_generation_stringified);
             if self.round > self.settings.min_rounds {
                 info!("Checking for convergence");
-                reached_convergence = this_generation_stringified == last_generation_stringified;
+                if best_score <= best_overall_score {
+                    rounds_no_increase += 1;
+                } else {
+                    rounds_no_increase = 0;
+                    best_overall_score = best_score;
+                }
+            }
+            if rounds_no_increase > 5 && this_generation_stringified == last_generation_stringified {
+                reached_convergence = true;
             }
             last_generation_stringified = this_generation_stringified;
             self.round += 1;
         }
         if reached_convergence {
-            info!("Stopped iterating since we stopped increasing our score");
+            println!("Stopped iterating since we stopped increasing our score");
         }
 
-        info!("Best final score is: {}", self.current_generation_complete[0].score);
+        println!("Best final score is: {}", self.current_generation_complete[0].score);
         self.output_best(self.settings.num_per_generation)
     }
 }

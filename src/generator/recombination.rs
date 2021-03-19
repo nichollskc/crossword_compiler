@@ -25,7 +25,7 @@ impl CrosswordGenerator {
                 }
             }
         }
-        self.pick_best_varied(partitions, self.settings.num_per_generation * 2)
+        self.pick_best_varied(partitions, self.settings.num_per_generation * self.settings.num_partitions)
     }
 
     pub fn perform_recombination(&mut self, seed: u64) {

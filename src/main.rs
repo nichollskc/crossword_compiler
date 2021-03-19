@@ -10,7 +10,7 @@ use crossword;
 fn main() {
     crossword::logging::init_logger(true);
 
-    let setting_names = ["num-per-gen", "num-children", "max-rounds", "seed", "moves-between-scores",
+    let setting_names = ["num-per-gen", "num-children", "max-rounds", "seed", "moves-between-scores", "num-partitions",
                          "weight-non-square", "weight-prop-filled", "weight-prop-intersect", "weight-num-cycles",
                          "weight-num-intersect", "weight-avg-intersect", "weight-words-placed"];
     let mut setting_args: Vec<Arg> = vec![];

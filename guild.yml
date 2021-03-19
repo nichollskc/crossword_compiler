@@ -7,6 +7,7 @@ generate:
     seed: 13
     moves-between-scores: 5
     num-children: 2
+    num-partitions: 5
     max-rounds: 40
     weight-non-square: 2
     weight-prop-filled: 10
