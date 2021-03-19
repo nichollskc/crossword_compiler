@@ -202,7 +202,7 @@ impl CrosswordGrid {
 
         let mut word_map: HashMap<usize, Word> = HashMap::new();
         for (word_id, word_str) in words.iter().enumerate() {
-            if let Some(word) = Word::new_parsed(word_str) {
+            if let Ok(word) = Word::new_parsed(word_str) {
                 word_map.insert(word_id, word);
                 word_ids.push(word_id);
             }

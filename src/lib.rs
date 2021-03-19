@@ -7,6 +7,9 @@ extern crate ndarray;
 #[macro_use]
 extern crate matches;
 
+#[macro_use] extern crate lazy_static;
+extern crate regex;
+
 pub mod graph;
 pub mod grid;
 pub mod logging;

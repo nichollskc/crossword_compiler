@@ -18,3 +18,10 @@ ndarray = "0.14.0"
 num-traits = "0.2"
 thiserror = "1.0"
 matches = "0.1"
+regex = "1"
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+assert_cmd = "0.10"
+predicates = "1"
+rstest = "0.6.4"

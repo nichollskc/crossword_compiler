@@ -1,4 +1,5 @@
 use log::warn;
+use thiserror::Error;
 
 use super::Location;
 use super::Direction;
@@ -6,16 +7,68 @@ use super::{VALID_CLUECHARS,VALID_ANSWERCHARS};
 
 use crate::sanitise_string;
 
-fn parse_clue_string(string: &str) -> (String, String, Option<Direction>) {
+use regex::Regex;
+
+#[derive(Error,Debug)]
+pub enum ParseError {
+    #[error("Invalid character '{0}' found in supplied answer: '{1}'")]
+    InvalidAnswerChar(char, String),
+
+    #[error("Supplied answer is empty: '{0}'")]
+    EmptyAnswer(String)
+}
+
+fn parse_answer_string(string: &str) -> Result<(String, String), ParseError> {
+    let mut word_lengths = String::from("(");
+    let mut word = String::new();
+    let mut current_word_len = 0;
+    for c in string.chars() {
+        match c {
+            '-' => {
+                word_lengths.push_str(&format!("{}-", current_word_len));
+                current_word_len = 0;
+            },
+            ' ' => {
+                word_lengths.push_str(&format!("{},", current_word_len));
+                current_word_len = 0;
+            },
+            'A'..='z' => {
+                word.push(c.to_ascii_uppercase());
+                current_word_len += 1;
+            },
+            _ => Err(ParseError::InvalidAnswerChar(c, string.to_string()))?,
+        }
+    }
+    word_lengths.push_str(&format!("{})", current_word_len));
+
+    match word.len() {
+        0 => Err(ParseError::EmptyAnswer(string.to_string())),
+        _ => Ok((word, word_lengths)),
+    }
+}
+
+fn clue_contains_word_lengths(string: &str) -> bool {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"\([-,\d]+\)").unwrap();
+    }
+    RE.is_match(string)
+}
+
+fn parse_clue_string(string: &str) -> Result<(String, String, Option<Direction>), ParseError> {
     let mut components = string.split("::");
 
     let word_text: &str = components.next().unwrap();
-    let sanitised_word: String = sanitise_string(word_text, VALID_ANSWERCHARS);
+    let (sanitised_word, word_lengths) = parse_answer_string(word_text)?;
     let clue: &str = match components.next() {
         Some(clue_text) => clue_text,
         None => "",
     };
-    let sanitised_clue: String = sanitise_string(clue, VALID_CLUECHARS);
+    let mut sanitised_clue: String = sanitise_string(clue, VALID_CLUECHARS);
+    if !clue_contains_word_lengths(&sanitised_clue) {
+        sanitised_clue.push_str(" ");
+        sanitised_clue.push_str(&word_lengths);
+    }
+
     let required_direction: Option<Direction> = match components.next() {
         Some(x) if x.to_uppercase() == "ACROSS" => Some(Direction::Across),
         Some(x) if x.to_uppercase() == "DOWN" => Some(Direction::Down),
@@ -25,7 +78,7 @@ fn parse_clue_string(string: &str) -> (String, String, Option<Direction>) {
         },
         None => None,
     };
-    (sanitised_word, sanitised_clue, required_direction)
+    Ok((sanitised_word, sanitised_clue, required_direction))
 }
 
 #[derive(Clone,Copy,Debug)]
@@ -77,13 +130,9 @@ impl Word {
         }
     }
 
-    pub fn new_parsed(string: &str) -> Option<Self> {
-        let (word, clue, required_direction) = parse_clue_string(string);
-        if word.len() > 1 {
-            Some(Word::new_unplaced(&word, &clue, required_direction))
-        } else {
-            None
-        }
+    pub fn new_parsed(string: &str) -> Result<Self, ParseError> {
+        let (word, clue, required_direction) = parse_clue_string(string)?;
+        Ok(Word::new_unplaced(&word, &clue, required_direction))
     }
 
     pub fn get_location(&self) -> Option<(Location, Location, Direction)> {
@@ -144,42 +193,59 @@ impl Word {
 
 #[cfg(test)]
 mod tests {
+	use rstest::rstest;
     use super::*;
 
-    fn parse_clue_test_helper(clue_string: &str, word: &str, clue: &str, required_direction: Option<Direction>) {
-        assert_eq!(parse_clue_string(clue_string),
+    #[rstest(clue_string, word, clue, required_direction,
+      case("WORD::clue::ACROSS", "WORD", "clue (4)", Some(Direction::Across)),
+      case("WORD::clue::across", "WORD", "clue (4)", Some(Direction::Across)),
+      case("WORD::clue::Across", "WORD", "clue (4)", Some(Direction::Across)),
+      case("WORD::clue with multiple words::ACROSS",
+           "WORD", "clue with multiple words (4)", Some(Direction::Across)),
+      case("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::ACROSS",
+           "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)", Some(Direction::Across)),
+      case("WORD::clue::DOWN", "WORD", "clue (4)", Some(Direction::Down)),
+      case("WORD::clue::down", "WORD", "clue (4)", Some(Direction::Down)),
+      case("SONNET::Lines up outside No 10 — speech just beginning (6)::DOWN",
+           "SONNET", "Lines up outside No 10 — speech just beginning (6)", Some(Direction::Down)),
+      case("WORD::clue::", "WORD", "clue (4)", None),
+      case("WORD::clue::blabla", "WORD", "clue (4)", None),
+      case("WORD::clue", "WORD", "clue (4)", None),
+      case("BELLY FLOP::clue", "BELLYFLOP", "clue (5,4)", None),
+      case("WORD", "WORD", " (4)", None),
+      case("TEA-TIME::clue", "TEATIME", "clue (3-4)", None),
+      case("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::",
+           "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)", None),
+      )]
+    fn test_parse_clue_string(clue_string: &str, word: &str, clue: &str, required_direction: Option<Direction>) -> Result<(), ParseError> {
+        assert_eq!(parse_clue_string(clue_string)?,
                    (word.to_string(), clue.to_string(), required_direction));
-    }
-    fn parse_clue_test_helper_across(clue_string: &str, word: &str, clue: &str) {
-        parse_clue_test_helper(clue_string, word, clue, Some(Direction::Across));
-    }
-    fn parse_clue_test_helper_down(clue_string: &str, word: &str, clue: &str) {
-        parse_clue_test_helper(clue_string, word, clue, Some(Direction::Down));
-    }
-    fn parse_clue_test_helper_none(clue_string: &str, word: &str, clue: &str) {
-        parse_clue_test_helper(clue_string, word, clue, None);
+        Ok(())
     }
 
-    #[test]
-    fn test_parse_clue_string() {
-        parse_clue_test_helper_across("WORD::clue::ACROSS", "WORD", "clue");
-        parse_clue_test_helper_across("WORD::clue::across", "WORD", "clue");
-        parse_clue_test_helper_across("WORD::clue::Across", "WORD", "clue");
-        parse_clue_test_helper_down("WORD::clue::DOWN", "WORD", "clue");
-        parse_clue_test_helper_down("WORD::clue::down", "WORD", "clue");
-        parse_clue_test_helper_none("WORD::clue::", "WORD", "clue");
-        parse_clue_test_helper_none("WORD::clue::blabla", "WORD", "clue");
-        parse_clue_test_helper_none("WORD::clue", "WORD", "clue");
-        parse_clue_test_helper_none("BELLY FLOP::clue", "BELLYFLOP", "clue");
-        parse_clue_test_helper_none("WORD", "WORD", "");
-        parse_clue_test_helper_across("WORD::clue with multiple words::ACROSS",
-                                      "WORD", "clue with multiple words");
-        parse_clue_test_helper_none("TEA-TIME::clue", "TEATIME", "clue");
-        parse_clue_test_helper_none("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::",
-                                    "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)");
-        parse_clue_test_helper_across("ANOXIC::Gripped by sudden fear, topless opponents in game lacking vital element (6)::ACROSS",
-                                    "ANOXIC", "Gripped by sudden fear, topless opponents in game lacking vital element (6)");
-        parse_clue_test_helper_down("SONNET::Lines up outside No 10 — speech just beginning (6)::DOWN",
-                                    "SONNET", "Lines up outside No 10 — speech just beginning (6)");
+    #[rstest(string, word, word_lengths,
+      case("TEA-TIME", "TEATIME", "(3-4)"),
+      case("BILBO BAGGINS", "BILBOBAGGINS", "(5,7)"),
+      case("tea-time", "TEATIME", "(3-4)"),
+      case("tea-TIME", "TEATIME", "(3-4)"),
+      )]
+    fn test_parse_answer_string(string: &str, word: &str, word_lengths: &str) -> Result<(), ParseError> {
+        crate::logging::init_logger(true);
+        assert_eq!(parse_answer_string(string)?,
+                   (word.to_string(), word_lengths.to_string()));
+        Ok(())
+    }
+
+    #[rstest(input, expected,
+      case("Lines up outside No 10 — speech just beginning (6)", true),
+	  case("Lines up outside No 10 — speech just beginning (3-4)", true),
+	  case("Lines up outside No 10 — speech just beginning (3,4)", true),
+	  case("Lines up outside No 10 — speech just beginning (10,1,1)", true),
+	  case("Lines up outside No 10 — speech just beginning", false),
+	  case("Lines up outside No 10 — (speech just beginning)", false),
+      )]
+    fn test_check_word_lengths_in_string(input: &str, expected: bool) {
+        crate::logging::init_logger(true);
+        assert_eq!(expected, clue_contains_word_lengths(input))
     }
 }
