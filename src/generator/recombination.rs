@@ -33,7 +33,6 @@ impl CrosswordGenerator {
         let mut rng = StdRng::seed_from_u64(seed);
 
         let gametes = self.generate_partitions(10, seed);
-//        let mut first_indices: Vec<usize> = (0..gametes.len().collect(); //).choose_multiple(&mut rng, self.settings.num_per_generation);
         let mut first_index = 0;
 
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
