@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 use std::fs;
 use std::process::Command;
+use std::io::Write;
 
-use handlebars::Handlebars;
-use serde_json::json;
+
+use handlebars::{Handlebars, HelperDef, RenderError, RenderContext, Helper, Context, JsonRender, HelperResult, Output};
+use serde_json::{Value,json};
 
 use super::CrosswordGrid;
 use super::Cell;
@@ -12,13 +14,26 @@ use super::Location;
 static DOCUMENT_START: &str = "\\documentclass{article}\n\\usepackage{multicol}\\usepackage[margin=0.5in]{geometry}\\usepackage[unboxed,small]{cwpuzzle}\n\n\\newcommand{\\CrosswordClue}[3]{\\textbf{#1} \\quad #3 \\\\}\n\\begin{document}\n";
 static DOCUMENT_END: &str = "\n\n\\end{document}";
 
+fn wrap_in_braces(h: &Helper,
+                  _: &Handlebars,
+                  _: &Context,
+                  _: &mut RenderContext,
+                  out: &mut dyn Output) -> HelperResult {
+    let param = h.param(0).unwrap();
+
+    out.write("{")?;
+    out.write(param.value().render().as_ref())?;
+    out.write("}")?;
+    Ok(())
+}
+
 #[derive(Debug)]
 pub struct CrosswordPrinter {
     grid: CrosswordGrid,
     last_clue_number: usize,
     visited_word_ids: HashSet<usize>,
-    across_clues: String,
-    down_clues: String,
+    across_clues: Vec<Value>,
+    down_clues: Vec<Value>,
     printed_grid: String,
     empty_cell_format: String,
     filled_cell_format: String,
@@ -30,8 +45,8 @@ impl CrosswordPrinter {
             grid,
             last_clue_number: 0,
             visited_word_ids: HashSet::new(),
-            across_clues: String::new(),
-            down_clues: String::new(),
+            across_clues: vec![],
+            down_clues: vec![],
             printed_grid: String::new(),
             empty_cell_format: empty_cell_format.to_string(),
             filled_cell_format: filled_cell_format.to_string(),
@@ -44,11 +59,15 @@ impl CrosswordPrinter {
 
     fn add_clue(&mut self, clue_number: usize, word_id: usize, across: bool) {
         let word = self.grid.word_map.get(&word_id).unwrap();
-        let clue = format!("\\CrosswordClue{{{}}}{{{}}}{{{}}}\n", clue_number, word.word_text, word.clue);
+        let clue_info = json!({
+            "number": clue_number,
+            "answer": word.word_text,
+            "clue": word.clue,
+        });
         if across {
-            self.across_clues.push_str(&clue);
+            self.across_clues.push(clue_info);
         } else {
-            self.down_clues.push_str(&clue);
+            self.down_clues.push(clue_info);
         }
     }
 
@@ -123,6 +142,7 @@ impl CrosswordPrinter {
         });
         let mut handlebars = Handlebars::new();
         handlebars.register_escape_fn(handlebars::no_escape);
+        handlebars.register_helper("braced", Box::new(wrap_in_braces));
         handlebars.register_template_file("template", "./templates/latex_template.hbs").unwrap();
         handlebars.render("template", &data).unwrap()
     }

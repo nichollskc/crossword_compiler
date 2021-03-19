@@ -2,6 +2,9 @@
 \usepackage[margin=0.5in]{geometry}
 \usepackage[small,unboxed]{cwpuzzle}
 \usepackage{multicol}
+\usepackage [english]{babel}
+\usepackage [autostyle, english = american]{csquotes}
+\MakeOuterQuote{"}
 
 \usepackage[dvipsnames]{xcolor}
 
@@ -10,19 +13,24 @@
 \begin{document}
 
 \PuzzleSolution
-\begin{Puzzle}{{ num_cols }}{{ num_rows }}
+\begin{Puzzle}{{braced num_cols }}{{braced num_rows }}
 {{ puzzle_content }}
 \end{Puzzle}
 
 \begin{multicols}{2}
 
 \section*{Across}
-{{ across_clues }}
+{{#each across_clues as |c| ~}}
+\CrosswordClue{{braced c.number }}{{braced c.answer }}{{braced c.clue }}
+{{/each~}}
+
 
 \columnbreak
 
 \section*{Down}
-{{ down_clues }}
+{{#each down_clues as |c| ~}}
+\CrosswordClue{{braced c.number }}{{braced c.answer }}{{braced c.clue }}
+{{/each~}}
 
 \end{multicols}
 
