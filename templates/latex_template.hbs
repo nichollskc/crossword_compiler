@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage[margin=0.5in]{geometry}
+\usepackage[small,unboxed]{cwpuzzle}
+\usepackage{multicol}
+
+\usepackage[dvipsnames]{xcolor}
+
+\newcommand{\CrosswordClue}[3]{\small \textbf{#1} \quad #3 \\}
+
+\begin{document}
+
+\PuzzleSolution
+\begin{Puzzle}{{ num_cols }}{{ num_rows }}
+{{ puzzle_content }}
+\end{Puzzle}
+
+\begin{multicols}{2}
+
+\section*{Across}
+{{ across_clues }}
+
+\columnbreak
+
+\section*{Down}
+{{ down_clues }}
+
+\end{multicols}
+
+
+
+\end{document}

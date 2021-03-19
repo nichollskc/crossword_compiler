@@ -20,6 +20,7 @@ thiserror = "1.0"
 matches = "0.1"
 regex = "1"
 lazy_static = "1.4.0"
+handlebars = "3"
 
 [dev-dependencies]
 assert_cmd = "0.10"

@@ -2,6 +2,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::process::Command;
 
+use handlebars::Handlebars;
+use serde_json::json;
+
 use super::CrosswordGrid;
 use super::Cell;
 use super::Location;
@@ -23,15 +26,13 @@ pub struct CrosswordPrinter {
 
 impl CrosswordPrinter {
     pub fn new_with_settings(grid: CrosswordGrid, empty_cell_format: &str, filled_cell_format: &str) -> Self {
-        let (rows, cols) = grid.get_grid_dimensions();
-        let puzzle_definition = format!("\\begin{{Puzzle}}{{{}}}{{{}}}\n", cols, rows);
         CrosswordPrinter {
             grid,
             last_clue_number: 0,
             visited_word_ids: HashSet::new(),
-            across_clues: "\\begin{multicols}{2}\\section*{Across}\n".to_string(),
-            down_clues: "\\section*{Down}\n".to_string(),
-            printed_grid: puzzle_definition,
+            across_clues: String::new(),
+            down_clues: String::new(),
+            printed_grid: String::new(),
             empty_cell_format: empty_cell_format.to_string(),
             filled_cell_format: filled_cell_format.to_string(),
         }
@@ -112,12 +113,18 @@ impl CrosswordPrinter {
             self.end_cell_row();
         }
 
-        format!("{}{}\\end{{Puzzle}}\n\n{}\\columnbreak\n{}\\end{{multicols}}\n\n{}",
-                DOCUMENT_START,
-                self.printed_grid,
-                self.across_clues,
-                self.down_clues,
-                DOCUMENT_END)
+        let (rows, cols) = self.grid.get_grid_dimensions();
+        let data = &json!({
+            "num_cols": cols,
+            "num_rows": rows,
+            "puzzle_content": self.printed_grid,
+            "across_clues": self.across_clues,
+            "down_clues": self.down_clues
+        });
+        let mut handlebars = Handlebars::new();
+        handlebars.register_escape_fn(handlebars::no_escape);
+        handlebars.register_template_file("template", "./templates/latex_template.hbs").unwrap();
+        handlebars.render("template", &data).unwrap()
     }
 
     pub fn print_to_file(&mut self, filename: &str) {
