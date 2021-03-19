@@ -1,9 +1,8 @@
 use log::info;
 
+use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use rand::seq::IteratorRandom;
 use rand::rngs::StdRng;
-use rand::Rng;
 
 use super::CrosswordGridAttempt;
 use super::CrosswordGenerator;
@@ -32,13 +31,14 @@ impl CrosswordGenerator {
     pub fn perform_recombination(&mut self, seed: u64) {
         let mut rng = StdRng::seed_from_u64(seed);
 
-        let gametes = self.generate_partitions(10, seed);
+        let mut gametes = self.generate_partitions(10, seed);
+        gametes.shuffle(&mut rng);
+
         let mut first_index = 0;
 
         let mut recombined: Vec<CrosswordGridAttempt> = vec![];
         while first_index < gametes.len() {
             let mut second_index = 0;
-            let mut success = false;
             let mut min_overlaps = 1;
             while second_index < first_index {
                 let mut first = gametes[first_index].clone();
