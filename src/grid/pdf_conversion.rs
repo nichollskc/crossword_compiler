@@ -174,10 +174,14 @@ impl CrosswordPrinter {
             "across_clues": self.across_clues,
             "down_clues": self.down_clues
         });
+
         let mut handlebars = Handlebars::new();
         handlebars.register_escape_fn(handlebars::no_escape);
         handlebars.register_helper("braced", Box::new(wrap_in_braces));
-        handlebars.register_template_file("template", "./templates/latex_template.hbs").unwrap();
+
+        let template_string = include_str!("../../templates/latex_template.hbs");
+        handlebars.register_template_string("template", &template_string);
+
         handlebars.render("template", &data).unwrap()
     }
 
@@ -185,16 +189,19 @@ impl CrosswordPrinter {
         fs::write(filename, self.print().as_bytes()).expect("Unable to write to file!");
     }
 
-    pub fn print_to_pdf(&mut self, filename_root: &str) {
-        let tex_file = format!("{}.tex", filename_root);
-        let pdf_file = format!("{}.pdf", filename_root);
+    pub fn print_to_pdf(&mut self, folder: &str, filename_root: &str) {
+        fs::create_dir_all(folder).expect("Folder couldn't be created");
+        let tex_file = format!("{}/{}.tex", folder, filename_root);
+        let pdf_file = format!("{}/{}.pdf", folder, filename_root);
         self.print_to_file(&tex_file);
-        Command::new("pdflatex")
+        let output = Command::new("pdflatex")
             .arg("-output-directory")
-            .arg("latex_output")
+            .arg(folder)
             .arg(tex_file)
             .output()
             .expect("Command failed");
+        println!("status: {}", output.status);
+        println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
         println!("{}", pdf_file);
     }
 }

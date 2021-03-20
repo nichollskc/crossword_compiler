@@ -49,5 +49,5 @@ fn main() {
 
     let grid = &results[0];
     let mut printer = crossword::grid::CrosswordPrinter::new(grid.clone(), true, true);
-    printer.print_to_pdf("test");
+    printer.print_to_pdf("pdfs/new_folder", "test");
 }
